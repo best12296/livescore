@@ -10,22 +10,19 @@ if(typeof v==='object') return v.name || v.team_name || v.league_name || v.count
 return String(v);
 };
 const getTime = (m) => {
-let t = m.time || m.kickoff || m.start_time || m.match_time || m.kickoff_time || "";
-if(t && t.includes(":")) {
-let hh = t.slice(0,5);
-if(hh!=="00:00") return hh;
-}
-// try timestamp
-if(m.timestamp || m.start_timestamp){
-let ts = m.timestamp || m.start_timestamp;
-let d = new Date(ts*1000);
-if(!isNaN(d)) return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Africa/Lagos'});
+if(m.minute) return m.minute+"'";
+if(m.status && String(m.status).match(/^\d+/)) return String(m.status).includes("'") ? m.status : m.status+"'";
+let t = m.time || m.kickoff || m.start_time || "";
+if(t && t.includes(":") && t.slice(0,5)!=="00:00") return t.slice(0,5);
+if(m.timestamp){
+let d = new Date((m.timestamp*1000));
+return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Africa/Lagos'});
 }
 if(m.date && m.date.includes("T")){
 let d = new Date(m.date);
 if(!isNaN(d)) return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Africa/Lagos'});
 }
-return t || "00:00";
+return "00:00";
 };
 if (path === "/api/matches") {
 const KEY = env.FOOTBALL_API_KEY || "088f79cadddb9cebccc50b31fc30ff16545878cde9bac042269d8a9bc6b16736";
@@ -38,17 +35,16 @@ if (j.data) {
 if (Array.isArray(j.data)) {
 data = j.data.map(m=>({
 id: String(m.id||Math.random()),
-country: getName(m.country||m.country_name||m.area||"").toUpperCase() || "WORLD",
-league: getName(m.league_name||m.league||m.competition||m.tournament)||"League",
+country: getName(m.country||m.country_name||"").toUpperCase() || "WORLD",
+league: getName(m.league_name||m.league||"")||"League",
 home: getName(m.home_team||m.home),
 away: getName(m.away_team||m.away),
 time: getTime(m),
-rawTime: getTime(m),
-status: getName(m.status)||"NS",
+minute: m.minute || (String(m.status||"").match(/^\d+/) ? m.status : ""),
+status: getName(m.status)||"",
 home_score: m.home_score,
 away_score: m.away_score,
-minute: m.minute||"",
-isStarted: (m.home_score>0||m.away_score>0||String(m.status).toLowerCase().includes("live"))
+isLive: String(m.status||"").toLowerCase().includes("live") || (m.minute>0)
 }));
 } else {
 for (let k in j.data) {
@@ -57,70 +53,69 @@ let parts = k.split(" - ");
 let apiCountry = parts[0] ? parts[0].trim().toUpperCase() : "WORLD";
 let apiLeague = parts.length>1 ? parts.slice(1).join(" - ").trim() : k.trim();
 j.data[k].forEach(m=>{
-let leagueFromMatch = getName(m.league_name||m.league||m.competition);
-let countryFromMatch = getName(m.country||m.country_name);
-// If API key is "MATCHES: MATCHES" or "WORLD - MATCHES", use league from match itself
-let finalLeague = apiLeague;
-let finalCountry = apiCountry;
-if(apiLeague.toUpperCase()==="MATCHES" || apiCountry==="MATCHES"){
-finalLeague = leagueFromMatch || apiLeague;
-finalCountry = countryFromMatch ? countryFromMatch.toUpperCase() : "WORLD";
-}
+let leagueFromMatch = getName(m.league_name||m.league||"");
+let countryFromMatch = getName(m.country||m.country_name||"");
+let finalLeague = leagueFromMatch || apiLeague;
+let finalCountry = countryFromMatch ? countryFromMatch.toUpperCase() : apiCountry;
+if(finalCountry==="MATCHES" && countryFromMatch) finalCountry = countryFromMatch.toUpperCase();
 if(finalLeague.toUpperCase()==="MATCHES" && leagueFromMatch) finalLeague = leagueFromMatch;
-if(finalCountry==="WORLD" && countryFromMatch) finalCountry = countryFromMatch.toUpperCase();
-
 data.push({
 id: String(m.id||Math.random()),
-country: finalCountry || apiCountry,
-league: finalLeague || apiLeague,
+country: finalCountry,
+league: finalLeague,
 home: getName(m.home_team||m.home),
 away: getName(m.away_team||m.away),
 time: getTime(m),
-status: getName(m.status)||"NS",
-minute: m.minute||"",
+minute: m.minute || "",
+status: getName(m.status)||"",
 home_score: m.home_score,
 away_score: m.away_score,
-isStarted: (m.home_score>0||m.away_score>0||String(m.status).toLowerCase().includes("live"))
+isLive: String(m.status||"").toLowerCase().includes("live") || (m.minute>0)
 });
 });
 }
 }
 }
-// Remove the useless MATCHES:MATCHES header, keep real leagues
-data = data.filter(m=> !(m.country==="MATCHES" && m.league==="MATCHES") );
+data = data.filter(m=> !(m.country==="MATCHES" && m.league==="MATCHES"));
 return new Response(JSON.stringify({count:data.length, data}), {headers:{"Content-Type":"application/json",...cors}});
 } catch(e){ return new Response(JSON.stringify({count:0, data:[], error:e.message}), {headers:{"Content-Type":"application/json",...cors}}); }
 }
 return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
-body{background:#f2f2f2;color:#000;font-family:system-ui;margin:0}
-.h{background:#111;color:#fff;padding:12px;display:flex;justify-content:space-between;border-bottom:3px solid #00c853}
-.h b{color:#00ff88}
-.dates{display:flex;gap:6px;overflow:auto;padding:8px;background:#222}
-.d{min-width:64px;background:#333;color:#fff;border-radius:10px;padding:6px;text-align:center;cursor:pointer;font-size:11px}
+*{box-sizing:border-box}
+body{background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;margin:0;font-size:14px}
+.h{background:#111;color:#fff;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #00c853}
+.h b{color:#00ff88;font-size:18px}
+.dates{display:flex;gap:6px;overflow:auto;padding:8px;background:#222;white-space:nowrap}
+.d{min-width:70px;background:#333;color:#fff;border-radius:8px;padding:6px;text-align:center;cursor:pointer;font-size:11px;line-height:1.2}
 .d.active{background:#00c853;color:#000;font-weight:900}
-.country-head{background:#000;color:#fff;padding:7px 10px;font-size:13px;font-weight:900;text-transform:uppercase;display:flex;justify-content:space-between;position:sticky;top:0}
-.m{background:#fff;border-bottom:1px solid #ddd;padding:8px 10px;display:flex;align-items:center;gap:10px;cursor:pointer}
-.m:active{background:#e8ffe8}
-.time{width:50px;font-weight:700;font-size:13px}
-.clubs{flex:1;line-height:1.4}
-.club{font-size:13px}
-.score-col{width:45px;text-align:right;font-weight:900;font-size:13px}
+.country-bar{background:#000;color:#fff;padding:5px 8px;font-weight:700;font-size:13px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333}
+.country-bar span:last-child{font-weight:400;text-decoration:underline;cursor:pointer;font-size:12px}
+.match-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #e5e5e5;background:#fff;cursor:pointer}
+.match-row:active{background:#e8ffe8}
+.t{width:48px;font-size:13px;font-weight:400;flex-shrink:0}
+.t.live{color:#cc0000;font-weight:700}
+.teams{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.teams b{font-weight:400}
+.score{width:50px;text-align:right;font-weight:700;flex-shrink:0;color:#0033cc}
+.score.live{color:#cc0000}
+.score.dash{color:#000;font-weight:400}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:99;padding:15px}
 .modal-bg.open{display:flex}
-.modal{background:#fff;border:3px solid #00c853;border-radius:12px;width:100%;max-width:380px;padding:16px;color:#000}
-.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:14px}
-.close{background:#00c853;color:#000;border:none;width:100%;padding:11px;border-radius:8px;font-weight:900;margin-top:12px;cursor:pointer}
+.modal{background:#fff;border:2px solid #000;border-radius:4px;width:100%;max-width:400px;padding:0;overflow:hidden}
+.modal-head{background:#000;color:#fff;padding:8px 10px;font-weight:700;font-size:13px;display:flex;justify-content:space-between}
+.modal-body{padding:12px}
+.close{background:#00c853;color:#000;border:none;width:100%;padding:10px;border-radius:4px;font-weight:900;margin-top:10px;cursor:pointer}
 </style></head><body>
-<div class="h"><b>DIAMOND LIVESCORE</b><span id="src" style="font-size:11px">LIVE</span></div>
+<div class="h"><b>DIAMOND LIVESCORE</b><span id="src" style="font-size:11px;color:#ccc">0 matches</span></div>
 <div class="dates" id="dates"></div>
 <div id="list">Loading...</div>
 <div class="modal-bg" id="bg"><div class="modal" id="modal"></div></div>
 <script>
 var dates=document.getElementById('dates');var list=document.getElementById('list');var all=[];
-function build(){var h='';for(var i=-3;i<=4;i++){var d=new Date();d.setDate(d.getDate()+i);var iso=d.toISOString().slice(0,10);var lab=i==0?'TODAY':i==-1?'YEST':i==1?'TOM':d.toLocaleDateString('en',{weekday:'short'});var num=d.getDate()+' '+d.toLocaleDateString('en',{month:'short'});var act=i==0?' active':'';h+='<div class="d'+act+'" onclick="load(\\''+iso+'\\',this)"><small>'+lab+'</small><br><b>'+num+'</b></div>';}dates.innerHTML=h;}
+function build(){var h='';for(var i=-3;i<=4;i++){var d=new Date();d.setDate(d.getDate()+i);var iso=d.toISOString().slice(0,10);var lab=i==0?'TODAY':i==-1?'YEST':i==1?'TOM':d.toLocaleDateString('en',{weekday:'short'});var num=d.getDate()+' '+d.toLocaleDateString('en',{month:'short'});var act=i==0?' active':'';h+='<div class="d'+act+'" onclick="load(\\''+iso+'\\',this)"><div>'+lab+'</div><b>'+num+'</b></div>';}dates.innerHTML=h;}
 async function load(iso,el){
 if(el){document.querySelectorAll('.d').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
-list.innerHTML='Loading '+iso+'...';
+list.innerHTML='<div style="padding:15px;text-align:center">Loading '+iso+'...</div>';
 try{
 var r=await fetch('/api/matches?date='+iso);
 var j=await r.json();
@@ -129,37 +124,43 @@ document.getElementById('src').innerText=(j.count||0)+' matches';
 if(!all.length){list.innerHTML='<div style="padding:20px;text-align:center">No games for '+iso+'</div>';return;}
 var g={};
 all.forEach(function(m){
+// Let API arrange country and league
 var key=(m.country+': '+m.league).toUpperCase();
-if(key==='MATCHES: MATCHES' || key===': ' || key==='WORLD: MATCHES') key='OTHER: '+m.league;
+if(key.includes('MATCHES: MATCHES')) key='OTHER: '+m.league;
 if(!g[key]) g[key]=[];
 g[key].push(m);
 });
 var out='';
 for(var key in g){
 var matches=g[key];
-if(!key || key.includes('MATCHES: MATCHES')) continue;
-out+='<div class="country-head"><span>'+key+'</span><u>STANDINGS</u></div>';
+if(!key || key==='OTHER: MATCHES' || key===': ') continue;
+out+='<div class="country-bar"><span>'+key+'</span><span>Standings</span></div>';
 matches.forEach(function(m){
-var scoreHTML=m.isStarted?'<div class="score-col">'+(m.home_score!=null?m.home_score:0)+'-'+(m.away_score!=null?m.away_score:0)+'</div>':'<div class="score-col">-</div>';
-var live = m.minute ? ' <small style="color:red">'+m.minute+'</small>' : '';
-out+='<div class="m" onclick="openM(\\''+m.id+'\\')"><div class="time">'+m.time+live+'</div><div class="clubs"><div class="club">'+m.home+'</div><div class="club">'+m.away+'</div></div>'+scoreHTML+'</div>';
+var isLive = m.isLive || (m.minute && parseInt(m.minute)>0);
+var timeClass = isLive ? 't live' : 't';
+var timeText = m.minute ? m.minute+"'" : m.time;
+var hasScore = (m.home_score!=null && m.away_score!=null && (m.home_score!=='' || m.away_score!==''));
+var scoreText = hasScore ? (m.home_score+'-'+m.away_score) : '-';
+var scoreClass = hasScore ? (isLive ? 'score live' : 'score') : 'score dash';
+out+='<div class="match-row" onclick="openM(\\''+m.id+'\\')"><div class="'+timeClass+'">'+timeText+'</div><div class="teams">'+m.home+' - '+m.away+'</div><div class="'+scoreClass+'">'+scoreText+'</div></div>';
 });
 }
-list.innerHTML=out||'<div style="padding:20px;text-align:center">No valid leagues</div>';
+list.innerHTML=out;
 }catch(e){list.innerHTML='Error '+e.message;}
 }
 function openM(id){
 var m=null;for(var i=0;i<all.length;i++)if(all[i].id==id)m=all[i];if(!m)return;
-var ft = m.isStarted ? (m.home_score+' - '+m.away_score) : '-';
+var score = (m.home_score!=null)? m.home_score+' - '+m.away_score : '-';
 document.getElementById('modal').innerHTML=
-'<h3 style="text-align:center;margin:0 0 10px">'+m.country+': '+m.league+'</h3>'+
-'<div style="text-align:center;padding:10px;background:#f5f5f5;border-radius:8px;font-weight:900;line-height:1.6">'+m.home+'<br><span style="font-size:20px">'+(m.isStarted?m.home_score+' - '+m.away_score:'vs')+'</span><br>'+m.away+'</div>'+
-'<div class="row"><span>Country</span><b>'+m.country+'</b></div>'+
-'<div class="row"><span>League</span><b>'+m.league+'</b></div>'+
-'<div class="row"><span>Time</span><b>'+m.time+'</b></div>'+
-'<div class="row"><span>Status</span><b>'+m.status+' '+(m.minute||'')+'</b></div>'+
-'<div class="row"><span>Score</span><b>'+ft+'</b></div>'+
-'<button class="close" onclick="closeM()">CLOSE</button>';
+'<div class="modal-head"><span>'+m.country+': '+m.league+'</span><span onclick="closeM()" style="cursor:pointer">X</span></div>'+
+'<div class="modal-body">'+
+'<div style="text-align:center;padding:10px;background:#f5f5f5;border-radius:4px;margin-bottom:10px"><b>'+m.home+'</b><br><span style="font-size:22px;font-weight:900">'+(m.home_score!=null?m.home_score+' - '+m.away_score:'vs')+'</span><br><b>'+m.away+'</b></div>'+
+'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee"><span>Time</span><b>'+m.time+'</b></div>'+
+'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee"><span>League</span><b>'+m.league+'</b></div>'+
+'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee"><span>Country</span><b>'+m.country+'</b></div>'+
+'<div style="display:flex;justify-content:space-between;padding:6px 0"><span>Score</span><b>'+score+'</b></div>'+
+'<button class="close" onclick="closeM()">CLOSE</button>'+
+'</div>';
 document.getElementById('bg').classList.add('open');
 }
 function closeM(){document.getElementById('bg').classList.remove('open');}
