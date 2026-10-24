@@ -14,35 +14,27 @@ const L = (league||"").toUpperCase();
 const H = (home||"").toUpperCase();
 const A = (away||"").toUpperCase();
 const HA = H+" "+A;
-
-// TEAM BASED - FIXED WITH BRACKETS
-if(["SÃO BERNARDO","SAO BERNARDO","VILA NOVA","CRB","LONDRINA","PONTE PRETA","FORTALEZA","OPERÁRIO","OPERARIO","ATHLETIC"].some(t=>HA.includes(t))) return "BRAZIL";
-if(["INCA","LIMEÑO","LIMENO","CACAHUATIQUE","ÁGUILA","AGUILA","FAS","ALIANZA"].some(t=>HA.includes(t))) return "EL SALVADOR";
-if(["UNIVERSITARIO","JUAN PABLO","HUANCAYO","CUSCO","CRISTAL","SPORT HUANCAYO"].some(t=>HA.includes(t))) return "PERU";
-if(["SERENA","CONCEPCIÓN","CONCEPCION"].some(t=>HA.includes(t))) return "CHILE";
-if(["SKA","YENISEY","UFA","NIZHNY","KAMAZ","TEKSTILSHCHIK","SOCHI","ARSENAL","CHELYABINSK"].some(t=>HA.includes(t))) return "RUSSIA";
-if(["FUJIEDA","TOKUSHIMA","OMIYA","YOKOHAMA","JEF UNITED"].some(t=>HA.includes(t))) return "JAPAN";
-if(["JEONNAM","DAEGU","GIMPO","GIMHAE","CHEONAN"].some(t=>HA.includes(t))) return "SOUTH KOREA";
-if(["PŘÍBRAM","PRIBRAM","HANÁCKÁ","ZIZKOV","ŽIŽKOV"].some(t=>HA.includes(t))) return "CZECH REPUBLIC";
-
-// LEAGUE BASED - FIXED
+if(["SÃO BERNARDO","SAO BERNARDO","VILA NOVA","CRB","LONDRINA","PONTE PRETA","FORTALEZA","OPERÁRIO","OPERARIO","ATHLETIC","BRUSQUE"].some(t=>HA.includes(t))) return "BRAZIL";
+if(["INCA","LIMEÑO","LIMENO","CACAHUATIQUE","ÁGUILA","AGUILA","FAS","ALIANZA","ISIDRO","METAPAN"].some(t=>HA.includes(t))) return "EL SALVADOR";
+if(["UNIVERSITARIO","JUAN PABLO","HUANCAYO","CUSCO","CRISTAL","ALIANZA ATL","SPORT HUANCAYO","CUSCO"].some(t=>HA.includes(t))) return "PERU";
+if(["SERENA","CONCEPCIÓN","CONCEPCION","COQUIMBO","COLO COLO"].some(t=>HA.includes(t))) return "CHILE";
+if(["SKA","YENISEY","UFA","NIZHNY","KAMAZ","TEKSTILSHCHIK","SOCHI","CHELYABINSK"].some(t=>HA.includes(t))) return "RUSSIA";
+if(["FUJIEDA","TOKUSHIMA","OMIYA","YOKOHAMA","JEF UNITED","IWAKI"].some(t=>HA.includes(t))) return "JAPAN";
+if(["JEONNAM","DAEGU","GIMPO","GIMHAE","CHEONAN","BUSAN"].some(t=>HA.includes(t))) return "SOUTH KOREA";
+if(["PŘÍBRAM","PRIBRAM","ZIZKOV","ŽIŽKOV","HANÁCKÁ"].some(t=>HA.includes(t))) return "CZECH REPUBLIC";
 if(L.includes("FNL")) return "RUSSIA";
 if(L.includes("J2 LEAGUE")||L.includes("J1 LEAGUE")||L.includes("J-LEAGUE")||L.includes("J LEAGUE")) return "JAPAN";
 if(L.includes("K-LEAGUE")||L.includes("K LEAGUE")) return "SOUTH KOREA";
-if(L.includes("SERIE A")||L.includes("SERIE B")){
-  if(L.includes("BRAZIL")||HA.includes("BRASIL")||HA.includes("CRB")||HA.includes("VILA")) return "BRAZIL";
-  if(L.includes("BRAZIL")) return "BRAZIL";
-  return "ITALY";
-}
+if(L.includes("SERIE B")&& (L.includes("BRAZIL")||HA.includes("BRASIL")||HA.includes("VILA")||HA.includes("CRB"))) return "BRAZIL";
+if(L.includes("SERIE A")||L.includes("SERIE B")) return "ITALY";
 if(L.includes("PREMIER LEAGUE")) return "ENGLAND";
 if(L.includes("PRIMERA DIVISION")){
-  if(HA.includes("LIMEÑO")||HA.includes("LIMENO")||HA.includes("AGUILA")||HA.includes("FAS")||HA.includes("INCA")||HA.includes("ALIANZA")) return "EL SALVADOR";
-  if(HA.includes("UNIVERSITARIO")||HA.includes("CUSCO")||HA.includes("CRISTAL")||HA.includes("HUANCAYO")) return "PERU";
+  if(HA.includes("LIMEÑO")||HA.includes("LIMENO")||HA.includes("AGUILA")||HA.includes("FAS")||HA.includes("INCA")) return "EL SALVADOR";
+  if(HA.includes("UNIVERSITARIO")||HA.includes("CUSCO")||HA.includes("CRISTAL")) return "PERU";
   if(HA.includes("SERENA")||HA.includes("CONCEPC")) return "CHILE";
   return "EL SALVADOR";
 }
-if(L.includes("SERIE B")&&L.includes("BRAZIL")) return "BRAZIL";
-if(L.includes("PRIMERA")) return "SOUTH AMERICA";
+if(L.includes("BRASILEIRAO")||L.includes("BRASIL")) return "BRAZIL";
 return "OTHER";
 };
 if (path === "/api/matches") {
@@ -72,7 +64,7 @@ home_score: m.home_score,
 away_score: m.away_score,
 isStarted: (m.home_score>0||m.away_score>0)
 };
-});
+}).filter(m=> m.country!=="WORLD" && m.country!=="OTHER" && m.country!=="");
 return new Response(JSON.stringify({count:data.length, data:data}), {headers:{"Content-Type":"application/json",...cors}});
 } catch(e){ return new Response(JSON.stringify({count:0, data:[], error:e.message}), {headers:{"Content-Type":"application/json",...cors}}); }
 }
@@ -92,7 +84,6 @@ body{background:#f2f2f2;color:#000;font-family:system-ui;margin:0}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:99;padding:15px}
 .modal-bg.open{display:flex}
 .modal{background:#fff;border:3px solid #00c853;border-radius:12px;width:100%;max-width:380px;padding:16px}
-.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee}
 .close{background:#00c853;color:#000;border:none;width:100%;padding:11px;border-radius:8px;font-weight:900;margin-top:10px}
 </style></head><body>
 <div class="h"><b>DIAMOND LIVESCORE</b><span id="src" style="font-size:11px">LIVE</span></div>
@@ -104,36 +95,35 @@ var dates=document.getElementById('dates');var list=document.getElementById('lis
 function build(){var h='';for(var i=-3;i<=4;i++){var d=new Date();d.setDate(d.getDate()+i);var iso=d.toISOString().slice(0,10);var lab=i==0?'TODAY':i==-1?'YEST':i==1?'TOM':d.toLocaleDateString('en',{weekday:'short'});var num=d.getDate()+' '+d.toLocaleDateString('en',{month:'short'});var act=i==0?' active':'';h+='<div class="d'+act+'" onclick="load(\\''+iso+'\\',this)"><small>'+lab+'</small><br><b>'+num+'</b></div>';}dates.innerHTML=h;}
 async function load(iso,el){
 if(el){document.querySelectorAll('.d').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
-list.innerHTML='Loading...';
+list.innerHTML='Loading '+iso+'...';
 try{
 var r=await fetch('/api/matches?date='+iso);
 var j=await r.json();
 all=j.data||[];
 document.getElementById('src').innerText=(j.count||0)+' matches';
-if(!all.length){list.innerHTML='<div style="padding:20px;text-align:center">No games</div>';return;}
+if(!all.length){list.innerHTML='<div style="padding:20px;text-align:center">No games for '+iso+'</div>';return;}
 var g={};
 all.forEach(function(m){
-var k=(m.country+': '+m.league).toUpperCase();
-if(!g[k])g[k]=[];
-g[k].push(m);
+var key=(m.country+': '+m.league).toUpperCase();
+if(!g[key]) g[key]=[];
+g[key].push(m);
 });
 var out='';
-for(var L in g){
-if(!L || L.includes('WORLD:') || L.startsWith('WORLD') || L.startsWith('OTHER:')) {
-  // hide WORLD completely, show only league
-  var onlyLeague = L.replace('OTHER: ','').replace('WORLD: ','');
-  if(onlyLeague==='WORLD' || !onlyLeague) continue;
-  L = onlyLeague;
-}
-out+='<div class="country-head"><span>'+L+'</span><u>STANDINGS</u></div>';
-g[L].forEach(function(m){
+for(var key in g){
+var matches = g[key];
+if(!matches || !matches.length) continue;
+out+='<div class="country-head"><span>'+key+'</span><u>STANDINGS</u></div>';
+matches.forEach(function(m){
 var show=m.isStarted;
 var scoreHTML=show?'<div class="score-col">'+m.home_score+'-'+m.away_score+'</div>':'<div class="score-col">-</div>';
 out+='<div class="m" onclick="openM(\\''+m.id+'\\')"><div class="time">'+m.time+'</div><div class="clubs"><div class="club">'+m.home+'</div><div class="club">'+m.away+'</div></div>'+scoreHTML+'</div>';
 });
 }
 list.innerHTML=out;
-}catch(e){list.innerHTML='Error '+e.message;}
+}catch(e){
+list.innerHTML='Error: '+e.message+'<br><pre>'+e.stack+'</pre>';
+console.error(e);
+}
 }
 function openM(id){var m=null;for(var i=0;i<all.length;i++)if(all[i].id==id)m=all[i];if(!m)return;document.getElementById('modal').innerHTML='<h3 style="text-align:center">'+m.country+': '+m.league+'</h3><div style="text-align:center;padding:10px;font-weight:900">'+m.home+'<br>'+(m.isStarted?m.home_score+' - '+m.away_score:'vs')+'<br>'+m.away+'</div><button class="close" onclick="closeM()">CLOSE</button>';document.getElementById('bg').classList.add('open');}
 function closeM(){document.getElementById('bg').classList.remove('open');}
