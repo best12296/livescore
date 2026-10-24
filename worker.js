@@ -15,37 +15,41 @@ const H = (home||"").toUpperCase();
 const A = (away||"").toUpperCase();
 const HA = H+" "+A;
 
-// TEAM BASED - MOST ACCURATE
-if(HA.includes("SÃO BERNARDO")||HA.includes("VILA NOVA")||HA.includes("CRB")||HA.includes("LONDRINA")||HA.includes("PONTE PRETA")||HA.includes("FORTALEZA")||HA.includes("OPERÁRIO")||HA.includes("ATHLETIC")||HA.includes("SPORT")&&L.includes("SERIE B")) return "BRAZIL";
-if(HA.includes("INCA")||HA.includes("LIMEÑO")||HA.includes("CACAHUATIQUE")||HA.includes("ÁGUILA")||HA.includes("FAS")||HA.includes("ALIANZA")&&!HA.includes("ATLETICO")) return "EL SALVADOR";
-if(HA.includes("UNIVERSITARIO")||HA.includes("JUAN PABLO")||HA.includes("HUANCAYO")||HA.includes("CUSCO")||HA.includes("CRISTAL")||HA.includes("ALIANZA ATL")) return "PERU";
-if(HA.includes("SERENA")||HA.includes("CONCEPCIÓN")||HA.includes("CONCEPCION")) return "CHILE";
-if(HA.includes("SKA")||HA.includes("YENISEY")||HA.includes("UFA")||HA.includes("NIZHNY")||HA.includes("KAMAZ")||HA.includes("TEKSTILSHCHIK")||HA.includes("SOCHI")) return "RUSSIA";
-if(HA.includes("FUJIEDA")||HA.includes("TOKUSHIMA")||HA.includes("OMIYA")||HA.includes("YOKOHAMA")) return "JAPAN";
-if(HA.includes("JEONNAM")||HA.includes("DAEGU")||HA.includes("GIMPO")||HA.includes("GIMHAE")) return "SOUTH KOREA";
-if(HA.includes("ARSENAL CL")||HA.includes("PŘÍBRAM")||HA.includes("HANÁCKÁ")||HA.includes("ŽIŽKOV")) return "CZECH REPUBLIC";
+// TEAM BASED - FIXED WITH BRACKETS
+if(["SÃO BERNARDO","SAO BERNARDO","VILA NOVA","CRB","LONDRINA","PONTE PRETA","FORTALEZA","OPERÁRIO","OPERARIO","ATHLETIC"].some(t=>HA.includes(t))) return "BRAZIL";
+if(["INCA","LIMEÑO","LIMENO","CACAHUATIQUE","ÁGUILA","AGUILA","FAS","ALIANZA"].some(t=>HA.includes(t))) return "EL SALVADOR";
+if(["UNIVERSITARIO","JUAN PABLO","HUANCAYO","CUSCO","CRISTAL","SPORT HUANCAYO"].some(t=>HA.includes(t))) return "PERU";
+if(["SERENA","CONCEPCIÓN","CONCEPCION"].some(t=>HA.includes(t))) return "CHILE";
+if(["SKA","YENISEY","UFA","NIZHNY","KAMAZ","TEKSTILSHCHIK","SOCHI","ARSENAL","CHELYABINSK"].some(t=>HA.includes(t))) return "RUSSIA";
+if(["FUJIEDA","TOKUSHIMA","OMIYA","YOKOHAMA","JEF UNITED"].some(t=>HA.includes(t))) return "JAPAN";
+if(["JEONNAM","DAEGU","GIMPO","GIMHAE","CHEONAN"].some(t=>HA.includes(t))) return "SOUTH KOREA";
+if(["PŘÍBRAM","PRIBRAM","HANÁCKÁ","ZIZKOV","ŽIŽKOV"].some(t=>HA.includes(t))) return "CZECH REPUBLIC";
 
-// LEAGUE BASED
+// LEAGUE BASED - FIXED
 if(L.includes("FNL")) return "RUSSIA";
-if(L.includes("J2 LEAGUE")||L.includes("J1 LEAGUE")||L.includes("J-LEAGUE")) return "JAPAN";
-if(L.includes("K-LEAGUE")) return "SOUTH KOREA";
-if(L.includes("SERIE A")||L.includes("SERIE B")&&!L.includes("BRAZIL")) {
- if(HA.includes("BRASIL")||HA.includes("CRB")||HA.includes("VILA")) return "BRAZIL";
- return "ITALY";
+if(L.includes("J2 LEAGUE")||L.includes("J1 LEAGUE")||L.includes("J-LEAGUE")||L.includes("J LEAGUE")) return "JAPAN";
+if(L.includes("K-LEAGUE")||L.includes("K LEAGUE")) return "SOUTH KOREA";
+if(L.includes("SERIE A")||L.includes("SERIE B")){
+  if(L.includes("BRAZIL")||HA.includes("BRASIL")||HA.includes("CRB")||HA.includes("VILA")) return "BRAZIL";
+  if(L.includes("BRAZIL")) return "BRAZIL";
+  return "ITALY";
 }
 if(L.includes("PREMIER LEAGUE")) return "ENGLAND";
 if(L.includes("PRIMERA DIVISION")){
- if(HA.includes("SALVADOR")||HA.includes("LIMEÑO")||HA.includes("AGUILA")||HA.includes("FAS")||HA.includes("INCA")) return "EL SALVADOR";
- if(HA.includes("PERU")||HA.includes("UNIVERSITARIO")||HA.includes("CUSCO")||HA.includes("CRISTAL")) return "PERU";
- if(HA.includes("CHILE")||HA.includes("SERENA")||HA.includes("CONCEPC")) return "CHILE";
- return "LATIN AMERICA";
+  if(HA.includes("LIMEÑO")||HA.includes("LIMENO")||HA.includes("AGUILA")||HA.includes("FAS")||HA.includes("INCA")||HA.includes("ALIANZA")) return "EL SALVADOR";
+  if(HA.includes("UNIVERSITARIO")||HA.includes("CUSCO")||HA.includes("CRISTAL")||HA.includes("HUANCAYO")) return "PERU";
+  if(HA.includes("SERENA")||HA.includes("CONCEPC")) return "CHILE";
+  return "EL SALVADOR";
 }
-return "WORLD";
+if(L.includes("SERIE B")&&L.includes("BRAZIL")) return "BRAZIL";
+if(L.includes("PRIMERA")) return "SOUTH AMERICA";
+return "OTHER";
 };
 if (path === "/api/matches") {
 const KEY = env.FOOTBALL_API_KEY || "088f79cadddb9cebccc50b31fc30ff16545878cde9bac042269d8a9bc6b16736";
+const date = url.searchParams.get("date") || new Date().toISOString().slice(0,10);
 try {
-const r = await fetch("https://www.live-football-api.com/api/v1/matches?api_key=" + KEY);
+const r = await fetch("https://www.live-football-api.com/api/v1/matches?api_key=" + KEY + "&date=" + date);
 const j = await r.json();
 let raw = [];
 if (j.data) {
@@ -109,24 +113,24 @@ document.getElementById('src').innerText=(j.count||0)+' matches';
 if(!all.length){list.innerHTML='<div style="padding:20px;text-align:center">No games</div>';return;}
 var g={};
 all.forEach(function(m){
-var displayCountry = m.country==='WORLD' ? '' : m.country+': ';
-var k=(displayCountry+m.league).toUpperCase();
-if(k.startsWith(': ')) k=k.substring(2);
+var k=(m.country+': '+m.league).toUpperCase();
 if(!g[k])g[k]=[];
 g[k].push(m);
 });
 var out='';
 for(var L in g){
-if(!L || L==='WORLD' || L.includes('WORLD:')) continue;
+if(!L || L.includes('WORLD:') || L.startsWith('WORLD') || L.startsWith('OTHER:')) {
+  // hide WORLD completely, show only league
+  var onlyLeague = L.replace('OTHER: ','').replace('WORLD: ','');
+  if(onlyLeague==='WORLD' || !onlyLeague) continue;
+  L = onlyLeague;
+}
 out+='<div class="country-head"><span>'+L+'</span><u>STANDINGS</u></div>';
 g[L].forEach(function(m){
 var show=m.isStarted;
 var scoreHTML=show?'<div class="score-col">'+m.home_score+'-'+m.away_score+'</div>':'<div class="score-col">-</div>';
 out+='<div class="m" onclick="openM(\\''+m.id+'\\')"><div class="time">'+m.time+'</div><div class="clubs"><div class="club">'+m.home+'</div><div class="club">'+m.away+'</div></div>'+scoreHTML+'</div>';
 });
-}
-if(!out){
-out='<div style="padding:20px;text-align:center">All WORLD filtered - check mapping</div>';
 }
 list.innerHTML=out;
 }catch(e){list.innerHTML='Error '+e.message;}
