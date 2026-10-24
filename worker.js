@@ -14,27 +14,40 @@ const L = (league||"").toUpperCase();
 const H = (home||"").toUpperCase();
 const A = (away||"").toUpperCase();
 const HA = H+" "+A;
-if(["SÃO BERNARDO","SAO BERNARDO","VILA NOVA","CRB","LONDRINA","PONTE PRETA","FORTALEZA","OPERÁRIO","OPERARIO","ATHLETIC","BRUSQUE"].some(t=>HA.includes(t))) return "BRAZIL";
-if(["INCA","LIMEÑO","LIMENO","CACAHUATIQUE","ÁGUILA","AGUILA","FAS","ALIANZA","ISIDRO","METAPAN"].some(t=>HA.includes(t))) return "EL SALVADOR";
-if(["UNIVERSITARIO","JUAN PABLO","HUANCAYO","CUSCO","CRISTAL","ALIANZA ATL","SPORT HUANCAYO","CUSCO"].some(t=>HA.includes(t))) return "PERU";
-if(["SERENA","CONCEPCIÓN","CONCEPCION","COQUIMBO","COLO COLO"].some(t=>HA.includes(t))) return "CHILE";
-if(["SKA","YENISEY","UFA","NIZHNY","KAMAZ","TEKSTILSHCHIK","SOCHI","CHELYABINSK"].some(t=>HA.includes(t))) return "RUSSIA";
-if(["FUJIEDA","TOKUSHIMA","OMIYA","YOKOHAMA","JEF UNITED","IWAKI"].some(t=>HA.includes(t))) return "JAPAN";
-if(["JEONNAM","DAEGU","GIMPO","GIMHAE","CHEONAN","BUSAN"].some(t=>HA.includes(t))) return "SOUTH KOREA";
-if(["PŘÍBRAM","PRIBRAM","ZIZKOV","ŽIŽKOV","HANÁCKÁ"].some(t=>HA.includes(t))) return "CZECH REPUBLIC";
+
+// --- BRAZIL TEAMS - CHECK FIRST BEFORE ITALY ---
+const BRAZIL = ["SÃO BERNARDO","SAO BERNARDO","SPORT","CRICIÚMA","CRICIUMA","VILA NOVA","CRB","LONDRINA","PONTE PRETA","FORTALEZA","OPERÁRIO","OPERARIO","ATHLETIC","AVAI","AVAÍ","BOTAFOGO SP","ATLÉTICO GO","ATLETICO GO","NOVORIZONTINO","AMERICA MG","AMÉRICA MG","CORITIBA","GOIÁS","GOIAS","CEARÁ","CEARA","GUARANI","ITUANO","MIRASSOL","CHAPECOENSE","SANTOS","BRUSQUE","PAULISTA"];
+if(BRAZIL.some(t=>HA.includes(t))) return "BRAZIL";
+
+// --- ITALY TEAMS ---
+const ITALY = ["AVELLINO","CALCIO PADOVA","PADOVA","CREMONESE","JUVE STABIA","MODENA","CESENA","SÜDTIROL","SUDTIROL","SAMPDORIA","VIRTUS","MANTOVA","CATANZARO","ASCOLI","AREZZO","BENEVENTO","PALERMO","BARI","BRESCIA","SPEZIA","PISA","CARRARESE","FROSINONE","REGGIANA"];
+if(ITALY.some(t=>HA.includes(t))) return "ITALY";
+
+// --- OTHER COUNTRIES ---
+if(["INCA","LIMEÑO","LIMENO","CACAHUATIQUE","ÁGUILA","AGUILA","FAS","ISIDRO","METAPAN"].some(t=>HA.includes(t))) return "EL SALVADOR";
+if(["UNIVERSITARIO","JUAN PABLO","HUANCAYO","CUSCO","CRISTAL","ALIANZA ATL"].some(t=>HA.includes(t))) return "PERU";
+if(["SERENA","CONCEPCIÓN","CONCEPCION"].some(t=>HA.includes(t))) return "CHILE";
+if(["SKA","YENISEY","UFA","NIZHNY","KAMAZ","SOCHI","CHELYABINSK"].some(t=>HA.includes(t))) return "RUSSIA";
+if(["FUJIEDA","TOKUSHIMA","OMIYA","YOKOHAMA"].some(t=>HA.includes(t))) return "JAPAN";
+if(["JEONNAM","DAEGU","GIMPO","GIMHAE"].some(t=>HA.includes(t))) return "SOUTH KOREA";
+
+// LEAGUE BASED
 if(L.includes("FNL")) return "RUSSIA";
-if(L.includes("J2 LEAGUE")||L.includes("J1 LEAGUE")||L.includes("J-LEAGUE")||L.includes("J LEAGUE")) return "JAPAN";
+if(L.includes("J2")||L.includes("J-LEAGUE")||L.includes("J LEAGUE")) return "JAPAN";
 if(L.includes("K-LEAGUE")||L.includes("K LEAGUE")) return "SOUTH KOREA";
-if(L.includes("SERIE B")&& (L.includes("BRAZIL")||HA.includes("BRASIL")||HA.includes("VILA")||HA.includes("CRB"))) return "BRAZIL";
-if(L.includes("SERIE A")||L.includes("SERIE B")) return "ITALY";
-if(L.includes("PREMIER LEAGUE")) return "ENGLAND";
+if(L.includes("SERIE B")){
+  // If still not detected, check again: if has SP, GO, MG, CE — likely Brazil
+  if(HA.includes(" SP")||HA.includes(" GO")||HA.includes(" MG")||HA.includes(" CRB")||HA.includes("AVAI")) return "BRAZIL";
+  return "ITALY";
+}
+if(L.includes("SERIE A")) return "ITALY";
 if(L.includes("PRIMERA DIVISION")){
-  if(HA.includes("LIMEÑO")||HA.includes("LIMENO")||HA.includes("AGUILA")||HA.includes("FAS")||HA.includes("INCA")) return "EL SALVADOR";
-  if(HA.includes("UNIVERSITARIO")||HA.includes("CUSCO")||HA.includes("CRISTAL")) return "PERU";
+  if(HA.includes("LIMEÑO")||HA.includes("AGUILA")||HA.includes("FAS")||HA.includes("INCA")) return "EL SALVADOR";
+  if(HA.includes("CUSCO")||HA.includes("CRISTAL")||HA.includes("UNIVERSITARIO")) return "PERU";
   if(HA.includes("SERENA")||HA.includes("CONCEPC")) return "CHILE";
   return "EL SALVADOR";
 }
-if(L.includes("BRASILEIRAO")||L.includes("BRASIL")) return "BRAZIL";
+if(L.includes("BRASIL")||L.includes("BRASILEIRAO")) return "BRAZIL";
 return "OTHER";
 };
 if (path === "/api/matches") {
@@ -53,19 +66,9 @@ let league = getName(m.league_name||m.league||m.competition)||"League";
 let home = getName(m.home_team||m.home)||"Home";
 let away = getName(m.away_team||m.away)||"Away";
 let country = getCountry(league, home, away);
-return {
-id: String(m.id||Math.random()),
-country: country,
-league: league,
-home: home,
-away: away,
-time: (m.time||"00:00").toString().slice(0,5),
-home_score: m.home_score,
-away_score: m.away_score,
-isStarted: (m.home_score>0||m.away_score>0)
-};
-}).filter(m=> m.country!=="WORLD" && m.country!=="OTHER" && m.country!=="");
-return new Response(JSON.stringify({count:data.length, data:data}), {headers:{"Content-Type":"application/json",...cors}});
+return {id: String(m.id||Math.random()),country,league,home,away,time:(m.time||"00:00").toString().slice(0,5),home_score:m.home_score,away_score:m.away_score,isStarted:(m.home_score>0||m.away_score>0)};
+}).filter(m=>m.country!=="OTHER" && m.country!=="WORLD");
+return new Response(JSON.stringify({count:data.length, data}), {headers:{"Content-Type":"application/json",...cors}});
 } catch(e){ return new Response(JSON.stringify({count:0, data:[], error:e.message}), {headers:{"Content-Type":"application/json",...cors}}); }
 }
 return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
@@ -95,13 +98,13 @@ var dates=document.getElementById('dates');var list=document.getElementById('lis
 function build(){var h='';for(var i=-3;i<=4;i++){var d=new Date();d.setDate(d.getDate()+i);var iso=d.toISOString().slice(0,10);var lab=i==0?'TODAY':i==-1?'YEST':i==1?'TOM':d.toLocaleDateString('en',{weekday:'short'});var num=d.getDate()+' '+d.toLocaleDateString('en',{month:'short'});var act=i==0?' active':'';h+='<div class="d'+act+'" onclick="load(\\''+iso+'\\',this)"><small>'+lab+'</small><br><b>'+num+'</b></div>';}dates.innerHTML=h;}
 async function load(iso,el){
 if(el){document.querySelectorAll('.d').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
-list.innerHTML='Loading '+iso+'...';
+list.innerHTML='Loading...';
 try{
 var r=await fetch('/api/matches?date='+iso);
 var j=await r.json();
 all=j.data||[];
 document.getElementById('src').innerText=(j.count||0)+' matches';
-if(!all.length){list.innerHTML='<div style="padding:20px;text-align:center">No games for '+iso+'</div>';return;}
+if(!all.length){list.innerHTML='<div style="padding:20px;text-align:center">No games</div>';return;}
 var g={};
 all.forEach(function(m){
 var key=(m.country+': '+m.league).toUpperCase();
@@ -110,24 +113,16 @@ g[key].push(m);
 });
 var out='';
 for(var key in g){
-var matches = g[key];
-if(!matches || !matches.length) continue;
+var matches=g[key];
 out+='<div class="country-head"><span>'+key+'</span><u>STANDINGS</u></div>';
 matches.forEach(function(m){
-var show=m.isStarted;
-var scoreHTML=show?'<div class="score-col">'+m.home_score+'-'+m.away_score+'</div>':'<div class="score-col">-</div>';
-out+='<div class="m" onclick="openM(\\''+m.id+'\\')"><div class="time">'+m.time+'</div><div class="clubs"><div class="club">'+m.home+'</div><div class="club">'+m.away+'</div></div>'+scoreHTML+'</div>';
+var scoreHTML=m.isStarted?'<div class="score-col">'+m.home_score+'-'+m.away_score+'</div>':'<div class="score-col">-</div>';
+out+='<div class="m"><div class="time">'+m.time+'</div><div class="clubs"><div class="club">'+m.home+'</div><div class="club">'+m.away+'</div></div>'+scoreHTML+'</div>';
 });
 }
 list.innerHTML=out;
-}catch(e){
-list.innerHTML='Error: '+e.message+'<br><pre>'+e.stack+'</pre>';
-console.error(e);
+}catch(e){list.innerHTML='Error '+e.message;}
 }
-}
-function openM(id){var m=null;for(var i=0;i<all.length;i++)if(all[i].id==id)m=all[i];if(!m)return;document.getElementById('modal').innerHTML='<h3 style="text-align:center">'+m.country+': '+m.league+'</h3><div style="text-align:center;padding:10px;font-weight:900">'+m.home+'<br>'+(m.isStarted?m.home_score+' - '+m.away_score:'vs')+'<br>'+m.away+'</div><button class="close" onclick="closeM()">CLOSE</button>';document.getElementById('bg').classList.add('open');}
-function closeM(){document.getElementById('bg').classList.remove('open');}
-document.getElementById('bg').addEventListener('click',function(e){if(e.target.id=='bg')closeM();});
 build();load(new Date().toISOString().slice(0,10));
 <\/script></body></html>`, {headers:{"Content-Type":"text/html",...cors}});
 }
