@@ -33,7 +33,7 @@ if(ts){let d=new Date(ts*1000);timeStr=d.toLocaleTimeString('en-GB',{hour:'2-dig
 let hs=f.goals?.home; let as=f.goals?.away;
 let ht=f.score?.halftime; let ft=f.score?.fulltime;
 let hasScore=hs!=null && as!=null;
-let isLive=["1H","2H","HT","ET","LIVE","P","BT"].includes(status)||(minute && status!="FT");
+let isLive=["1H","2H","HT","ET","LIVE","P","BT"].includes(status);
 data.push({id:String(f.fixture?.id),country,league,time:timeStr,minute,status,longStatus,home,away,home_score:hasScore?String(hs):null,away_score:hasScore?String(as):null,ht_home:ht?.home!=null?String(ht.home):null,ht_away:ht?.away!=null?String(ht.away):null,ft_home:ft?.home!=null?String(ft.home):null,ft_away:ft?.away!=null?String(ft.away):null,hasScore,isLive});
 });
 data.sort((a,b)=>(a.country+a.league).localeCompare(b.country+b.league)||a.time.localeCompare(b.time));
@@ -45,7 +45,7 @@ return resp;
 }
 }
 
-return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
+return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>DIAMOND LIVESCORE v2</title><style>
 *{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui,Arial;font-size:13px}
 .h{background:#000;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;border-bottom:2px solid #00c853}
 .h b{color:#00e676;font-size:18px} .h span{background:#00c853;color:#000;padding:5px 12px;border-radius:20px;font-weight:900;font-size:11px}
@@ -55,7 +55,7 @@ return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name
 .d b{display:block;color:#fff;font-size:13px}
 .country-bar{background:#0a0a0a;color:#00e676;padding:10px 12px;font-weight:900;font-size:11px;text-transform:uppercase;display:flex;justify-content:space-between;border-left:4px solid #00c853;border-bottom:1px solid #111}
 .match-row{display:flex;gap:10px;padding:12px 10px;background:#111;border-bottom:1px solid #1a1a1a;cursor:pointer} .match-row:hover{background:#1a1a1a}
-.t{width:50px;font-weight:900;color:#888;font-size:12px} .t.live{color:#00e676} .t.ft{color:#00e676} .teams{flex:1;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t{width:38px;font-weight:900;color:#888;font-size:12px;text-align:center} .t.live{color:#00e676} .t.ft{color:#00e676;background:#00c85320;border-radius:4px} .teams{flex:1;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .score{width:50px;text-align:right;font-weight:900;font-size:13px} .score.live{color:#00e676} .score.finished{color:#fff} .score.dash{color:#444}
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:flex-end;z-index:99}
 #modal.show{display:flex} .modal-box{width:100%;background:#0f0f0f;border-top:3px solid #00c853;border-radius:18px 18px 0 0;padding:16px}
@@ -63,9 +63,6 @@ return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name
 .close{width:32px;height:32px;border-radius:50%;background:#222;color:#fff;border:1px solid #333;display:grid;place-items:center;cursor:pointer}
 .stat{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #1a1a1a} .stat span:last-child{color:#00e676;font-weight:800} .stat.ht span:last-child{color:#ffcc00} .stat.ft span:last-child{color:#00e676;font-size:15px}
 .btn{margin-top:12px;width:100%;background:#00c853;color:#000;border:0;padding:12px;border-radius:12px;font-weight:900;cursor:pointer}
-.badge{padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900} .badge-ft{background:#00c853;color:#000} .badge-ht{background:#333;color:#ffcc00} .badge-live{background:#c00;color:#fff}
-.skel{background:linear-gradient(90deg,#111 25%,#1a1a1a 50%,#111 75%);background-size:200% 100%;animation:sk 1s infinite}
-@keyframes sk{to{background-position:-200% 0}}
 </style></head><body>
 <div class="h"><b>DIAMOND LIVESCORE</b><span id="src">0 matches</span></div>
 <div class="dates" id="dates"></div>
@@ -83,11 +80,19 @@ var act=i==0?' active':'';h+='<div class="d'+act+'" onclick="load(\\''+iso+'\\',
 function openMatch(id){var m=gData[id];if(!m)return;
 var htText=(m.ht_home!=null&&m.ht_away!=null)?m.ht_home+' - '+m.ht_away:'-';
 var ftText=(m.ft_home!=null&&m.ft_away!=null)?m.ft_home+' - '+m.ft_away:(m.hasScore?m.home_score+' - '+m.away_score:'-');
-var statusBadge=m.status=='FT'?'<span class="badge badge-ft">FT</span>':m.status=='HT'?'<span class="badge badge-ht">HT '+(m.minute?m.minute+"'" : "")+'</span>':m.isLive?'<span class="badge badge-live">LIVE '+(m.minute?m.minute+"'" : "")+'</span>':'<span class="badge">'+m.status+'</span>';
 document.getElementById('mTitle').innerText=m.country+': '+m.league;
-document.getElementById('mBody').innerHTML='<div class="stat"><span>Match</span><span>'+m.home+' vs '+m.away+'</span></div><div class="stat"><span>Time</span><span>'+m.time+' '+statusBadge+'</span></div><div class="stat"><span>Status</span><span>'+m.longStatus+'</span></div><div class="stat ht"><span>HT Result</span><span>'+htText+'</span></div><div class="stat ft"><span>FT Result</span><span>'+ftText+'</span></div><div class="stat"><span>League</span><span>'+m.league+'</span></div>';modal.classList.add('show');}
+document.getElementById('mBody').innerHTML='<div class="stat"><span>Match</span><span>'+m.home+' vs '+m.away+'</span></div><div class="stat"><span>Time</span><span>'+m.time+' <b style=\\"background:#00c853;color:#000;padding:2px 6px;border-radius:4px;font-size:10px\\">'+m.status+'</b></span></div><div class="stat ht"><span>HT Result</span><span>'+htText+'</span></div><div class="stat ft"><span>FT Result</span><span>'+ftText+'</span></div>';modal.classList.add('show');}
 function closeModal(){modal.classList.remove('show');}
-function displayTime(m){if(m.status==='FT') return 'FT';if(m.status==='HT') return 'HT';if(m.isLive && m.minute) return m.minute+"'";return m.time;}
+function displayTime(m){
+// FORCE FT - no more 90'
+if(m.status==='FT') return 'FT';
+if(m.status==='AET') return 'AET';
+if(m.status==='PEN') return 'PEN';
+if(m.longStatus && m.longStatus.toLowerCase().indexOf('finished')>-1) return 'FT';
+if(m.status==='HT') return 'HT';
+if(m.isLive && m.minute) return m.minute+"'";
+return m.time;
+}
 function render(data){
 gData={};var g={};data.forEach(m=>{gData[m.id]=m;var key=(m.country+': '+m.league).toUpperCase();if(!g[key])g[key]=[];g[key].push(m);});
 var sortedKeys=Object.keys(g).sort((a,b)=>a.localeCompare(b));var out='';
@@ -106,18 +111,16 @@ list.innerHTML=out;
 }
 async function load(iso,el){
 if(el){document.querySelectorAll('.d').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
-// INSTANT from memory cache - 0.5s feel
 if(memCache[iso]){document.getElementById('src').innerText=(memCache[iso].length)+' matches';render(memCache[iso]);}
-else {list.innerHTML='<div style="padding:10px"><div class="skel" style="height:40px;margin:6px 0;border-radius:8px"></div><div class="skel" style="height:40px;margin:6px 0;border-radius:8px"></div><div class="skel" style="height:40px;margin:6px 0;border-radius:8px"></div></div>';}
+else {list.innerHTML='<div style="padding:30px;text-align:center;color:#00c853">Loading '+iso+'...</div>';}
 try{
-var r=await fetch('/api/matches?date='+iso,{cache:'no-store'});var j=await r.json();var data=j.data||[];
+var r=await fetch('/api/matches?date='+iso+'&v=2&_='+Date.now(),{cache:'no-store'});var j=await r.json();var data=j.data||[];
 memCache[iso]=data;
 document.getElementById('src').innerText=(j.count||0)+' matches';
-if(!data.length && !memCache[iso]){list.innerHTML='<div style="padding:30px;text-align:center;color:#777">No games</div>';return;}
 render(data);
-}catch(e){if(!memCache[iso])list.innerHTML='<div style="padding:20px;color:#f44">Error '+e.message+'</div>';}
+}catch(e){list.innerHTML='<div style="padding:20px;color:#f44">Error '+e.message+'</div>';}
 }
 build();load(new Date().toISOString().slice(0,10));
-<\/script></body></html>`,{headers:{"Content-Type":"text/html",...cors}});
+<\/script></body></html>`,{headers:{"Content-Type":"text/html","Cache-Control":"no-cache, no-store",...cors}});
 }
 }
