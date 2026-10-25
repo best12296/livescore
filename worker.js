@@ -1,59 +1,81 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "*" };
+    const cors = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "*"
+    };
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
-    const KEYS = [env.API_FOOTBALL_KEY, env.API_FOOTBALL_KEY2, env.API_FOOTBALL_KEY3].filter(Boolean);
+
+    const KEYS = [env.API_FOOTBALL_KEY, env.API_FOOTBALL_KEY2].filter(Boolean);
 
     if (url.pathname === "/api/matches") {
       const date = url.searchParams.get("date") || new Date().toISOString().slice(0,10);
-      const force = url.searchParams.get("refresh")==="1";
-      const cacheKey = new Request(`https://cache.local/${date}`);
+      const force = url.searchParams.get("refresh") === "1";
+      const cacheKey = new Request("https://cache.local/" + date);
       const cache = caches.default;
-      if(!force){
-        let cached = await cache.match(cacheKey);
-        if(cached){ return new Response(await cached.text(), { headers: { ...cors, "Content-Type":"application/json", "X-Cache":"HIT" } }); }
+
+      if (!force) {
+        const cached = await cache.match(cacheKey);
+        if (cached) {
+          return new Response(await cached.text(), { headers: { ...cors, "Content-Type": "application/json", "X-Cache": "HIT" } });
+        }
       }
-      if (KEYS.length===0) return new Response(JSON.stringify({count:0,data:[],[STRIPPED] KEY"}), {headers:{...cors,"Content-Type":"application/json"}});
-      let finalData = null; let lastError = null;
-      for(let KEY of KEYS){
-        try{
-          let apiRes = await fetch(`https://v3.football.api-sports.io/fixtures?date=${date}`, { headers: { "x-apisports-key": KEY } });
-          let j = await apiRes.json();
-          if(j.errors && Object.keys(j.errors).length>0){
-            if(JSON.stringify(j.errors).toLowerCase().includes("limit") || j.errors.requests){ lastError=j.errors; continue; }
-          }
-          let data=[];
-          (j.response||[]).forEach(f=>{
-            let short=f.fixture?.status?.short||"NS";
-            let st=short; if(short==="FT"||f.fixture?.status?.long==="Match Finished") st="FT";
-            data.push({
-              id:f.fixture?.id,
-              country:(f.league?.country||"WORLD").toUpperCase(),
-              league:f.league?.name,
-              timestamp:f.fixture?.timestamp,
-              status:st,
-              elapsed:f.fixture?.status?.elapsed,
-              home:f.teams?.home?.name,
-              away:f.teams?.away?.name,
-              score:`${f.goals?.home??0}-${f.goals?.away??0}`,
-              ht:`${f.score?.halftime?.home??0}-${f.score?.halftime?.away??0}`,
-              ft:`${f.score?.fulltime?.home??0}-${f.score?.fulltime?.away??0}`,
-              longStatus:f.fixture?.status?.long||short
-            });
+
+      let finalData = null;
+      let lastError = null;
+
+      for (const KEY of KEYS) {
+        try {
+          const apiRes = await fetch("https://v3.football.api-sports.io/fixtures?date=" + date, {
+            headers: { "x-apisports-key": KEY }
           });
-          data.sort((a,b)=>a.country.localeCompare(b.country)||a.league.localeCompare(b.league));
-          finalData = {count:data.length, data}; break;
-        }catch(e){ lastError=e.message; continue; }
+          const j = await apiRes.json();
+          if (j.errors && Object.keys(j.errors).length > 0) {
+            lastError = j.errors;
+            const msg = JSON.stringify(j.errors).toLowerCase();
+            if (msg.includes("limit") || j.errors.requests) continue;
+          }
+          const data = [];
+          for (const f of (j.response || [])) {
+            const short = f.fixture?.status?.short || "NS";
+            let st = short;
+            if (short === "FT" || f.fixture?.status?.long === "Match Finished") st = "FT";
+            data.push({
+              id: f.fixture?.id,
+              country: (f.league?.country || "WORLD").toUpperCase(),
+              league: f.league?.name,
+              timestamp: f.fixture?.timestamp,
+              status: st,
+              elapsed: f.fixture?.status?.elapsed,
+              home: f.teams?.home?.name,
+              away: f.teams?.away?.name,
+              score: (f.goals?.home ?? 0) + "-" + (f.goals?.away ?? 0),
+              ht: (f.score?.halftime?.home ?? 0) + "-" + (f.score?.halftime?.away ?? 0),
+              ft: (f.score?.fulltime?.home ?? 0) + "-" + (f.score?.fulltime?.away ?? 0),
+              longStatus: f.fixture?.status?.long || short
+            });
+          }
+          data.sort((a,b)=> a.country.localeCompare(b.country) || a.league.localeCompare(b.league));
+          finalData = { count: data.length, data: data };
+          break;
+        } catch (e) {
+          lastError = e.message;
+        }
       }
-      if(!finalData){ return new Response(JSON.stringify({count:0,data:[],[STRIPPED] FINISHED - Try tomorrow",details:lastError}), {headers:{...cors,"Content-Type":"application/json"}}); }
-      let txt = JSON.stringify(finalData);
-      let toCache = new Response(txt, {headers:{"Content-Type":"application/json","Cache-Control":"max-age=3600"}});
-      ctx.waitUntil(cache.put(cacheKey,toCache));
-      return new Response(txt, {headers:{...cors,"Content-Type":"application/json","X-Cache":"MISS"}});
+
+      if (!finalData) {
+        return new Response(JSON.stringify({ count:0, data:[], error:"QUOTA FINISHED", details:lastError }), { headers: { ...cors, "Content-Type":"application/json" } });
+      }
+
+      const txt = JSON.stringify(finalData);
+      const toCache = new Response(txt, { headers: { "Content-Type":"application/json", "Cache-Control":"max-age=3600" } });
+      ctx.waitUntil(cache.put(cacheKey, toCache));
+      return new Response(txt, { headers: { ...cors, "Content-Type":"application/json", "X-Cache":"MISS" } });
     }
 
-    return new Response(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
 body{margin:0;background:#000;color:#fff;font-family:Arial;font-weight:700}
 header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px solid #0f0;z-index:99}
 .top b{color:#0f0;font-size:18px}
@@ -69,7 +91,6 @@ header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px
 .card.live{border-left:3px solid #0f0;background:#0f0f0f}.card.ft{border-left:3px solid #444}
 .left{display:flex;gap:10px;align-items:center}.time{color:#0f0;font-size:12px;min-width:45px;text-align:center;background:#0f0f0f;border:1px solid #0f0;padding:4px 6px;border-radius:6px}.time.ns{color:#888;background:#111;border-color:#333}
 .teams{line-height:20px;font-size:14px}.mid{text-align:right;min-width:70px}.score{font-size:18px;font-weight:900}.min{font-size:11px;color:#0f0}.ftbadge{color:#fff;background:#333;padding:2px 8px;border-radius:10px;font-size:11px}
-/* MODAL */
 #modal{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;z-index:999;align-items:flex-end}
 #modal.show{display:flex}
 .modal-box{background:#151515;width:100%;border-radius:20px 20px 0 0;border-top:2px solid #0f0;padding:20px;animation:up .25s}
@@ -78,39 +99,55 @@ header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px
 .modal-head b{color:#0f0}
 .close{color:#888;border:1px solid #333;padding:4px 12px;border-radius:20px;cursor:pointer}
 .teamRow{display:flex;justify-content:space-between;padding:10px 0;font-size:16px;border-bottom:1px solid #222}
-.badge{color:#0f0;font-size:12px;border:1px solid #0f0;padding:2px 8px;border-radius:10px}
 .resultGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:16px;text-align:center}
 .rBox{background:#0f0f0f;border:1px solid #222;padding:12px;border-radius:12px}
 .rBox b{color:#0f0;font-size:18px;display:block}.rBox span{color:#666;font-size:11px}
-</style></head><body><header><div class="top"><b>DIAMOND LIVESCORE</b></div><div class="dates" id="dates"></div><div class="filters"><div class="f active" id="f-all" onclick="setFilter('all')">All Games</div><div class="f" id="f-live" onclick="setFilter('live')">Live</div><div class="f" id="f-ft" onclick="setFilter('ft')">Finished</div><div class="refresh" onclick="refreshNow()">↻ Refresh</div></div></header><div id="list">Loading...</div>
-
-<div id="modal" onclick="closeModal(event)"><div class="modal-box" onclick="event.stopPropagation()">
-<div class="modal-head"><b id="mLeague">Match</b><div class="close" onclick="closeModal()">✕ Close</div></div>
+</style></head><body>
+<header><div class="top"><b>DIAMOND LIVESCORE</b></div><div class="dates" id="dates"></div><div class="filters"><div class="f active" id="f-all">All Games</div><div class="f" id="f-live">Live</div><div class="f" id="f-ft">Finished</div><div class="refresh" id="refreshBtn">Refresh</div></div></header>
+<div id="list">Loading...</div>
+<div id="modal"><div class="modal-box">
+<div class="modal-head"><b id="mLeague">Match</b><div class="close" id="closeBtn">Close</div></div>
 <div id="mTeams"></div>
 <div class="resultGrid">
 <div class="rBox"><span>HALF TIME</span><b id="mHT">0-0</b></div>
 <div class="rBox"><span>FULL TIME</span><b id="mFT">0-0</b></div>
-<div class="rBox"><span>STATUS</span><b id="mST" style="font-size:12px">FT</b></div>
+<div class="rBox"><span>STATUS</span><b id="mST">FT</b></div>
 </div>
 <div style="margin-top:16px;color:#666;font-size:12px;text-align:center" id="mInfo"></div>
 </div></div>
-
 <script>
-const list=document.getElementById('list'),datesEl=document.getElementById('dates');
+const list=document.getElementById('list');const datesEl=document.getElementById('dates');
 let selectedDate=new Date();let allData=[];let currentFilter='all';
 function fmtDate(d){return d.toISOString().slice(0,10)}
-function dayLabel(d,i){const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];if(i===0)return'Today';return days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0');}
-function buildDates(){datesEl.innerHTML='';for(let i=-2;i<=2;i++){let dt=new Date();dt.setDate(dt.getDate()+i);let iso=fmtDate(dt);let btn=document.createElement('div');btn.className='d'+(i===0?' active':'');btn.textContent=dayLabel(dt,i);btn.onclick=()=>{selectedDate=dt;document.querySelectorAll('.d').forEach(x=>x.classList.remove('active'));btn.classList.add('active');load(iso)};datesEl.appendChild(btn);}}
-function getTime(ts){if(!ts)return'';let x=new Date(ts*1000);x.setHours(x.getHours()+1);return x.toISOString().slice(11,16);}
-function sc(m){if(m.status==='NS')return '';return '<div class="score">'+m.score+'</div>'+(m.status==='FT'?'<div class="ftbadge">FT</div>':(m.elapsed?'<div class="min">'+m.elapsed+"'"+'</div>':''));}
+function dayLabel(d,i){const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];if(i===0)return 'Today';return days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0');}
+function buildDates(){
+  datesEl.innerHTML='';
+  for(let i=-2;i<=2;i++){
+    let dt=new Date();dt.setDate(dt.getDate()+i);
+    let iso=fmtDate(dt);
+    let btn=document.createElement('div');
+    btn.className='d'+(i===0?' active':'');
+    btn.textContent=dayLabel(dt,i);
+    btn.onclick=function(){selectedDate=dt;document.querySelectorAll('.d').forEach(function(x){x.classList.remove('active')});btn.classList.add('active');load(iso);};
+    datesEl.appendChild(btn);
+  }
+}
+function getTime(ts){if(!ts)return '';let x=new Date(ts*1000);x.setHours(x.getHours()+1);return x.toISOString().slice(11,16);}
+function sc(m){if(m.status==='NS')return '';return '<div class="score">'+m.score+'</div>'+(m.status==='FT'?'<div class="ftbadge">FT</div>':(m.elapsed?'<div class="min">'+m.elapsed+"'"+"</div>":''));}
 function setFilter(t){
   currentFilter=t;
-  document.querySelectorAll('.f').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.f').forEach(function(x){x.classList.remove('active')});
   document.getElementById('f-'+t).classList.add('active');
   render(allData);
 }
-function refreshNow(){load(fmtDate(selectedDate), true)}
-async function load(d, force=false){
+document.getElementById('f-all').onclick=function(){setFilter('all')};
+document.getElementById('f-live').onclick=function(){setFilter('live')};
+document.getElementById('f-ft').onclick=function(){setFilter('ft')};
+document.getElementById('refreshBtn').onclick=function(){load(fmtDate(selectedDate), true)};
+document.getElementById('closeBtn').onclick=function(){document.getElementById('modal').classList.remove('show')};
+document.getElementById('modal').onclick=function(e){if(e.target.id==='modal')document.getElementById('modal').classList.remove('show')};
+
+async function load(d, force){
   if(!d)d=fmtDate(selectedDate);
   list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading '+d+'...</div>';
   let url='/api/matches?date='+d+(force?'&refresh=1':'');
@@ -120,33 +157,38 @@ async function load(d, force=false){
 }
 function render(data){
   let filtered=data;
-  if(currentFilter==='live') filtered=data.filter(m=>m.elapsed && m.status!=='FT');
-  if(currentFilter==='ft') filtered=data.filter(m=>m.status==='FT');
+  if(currentFilter==='live')filtered=data.filter(function(m){return m.elapsed && m.status!=='FT'});
+  if(currentFilter==='ft')filtered=data.filter(function(m){return m.status==='FT'});
   if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No '+currentFilter+' matches</div>';return}
-  let h='',lc='',ll='';
-  filtered.forEach((m,idx)=>{
+  let h='';let lc='';let ll='';
+  for(let idx=0; idx<filtered.length; idx++){
+    let m=filtered[idx];
     if(m.country!==lc){h+='<div class="country">'+m.country+'</div>';lc=m.country;ll=''}
     if(m.league!==ll){h+='<div class="league">'+m.league+'</div>';ll=m.league}
     let cls=m.status==='FT'?'card ft':(m.elapsed&&m.status!=='FT'?'card live':'card');
     let timeClass=m.status==='NS'?'time ns':'time';
-    // find real index in allData for modal
-    let realIdx = allData.indexOf(m);
-    h+='<div class="'+cls+'" onclick="openMatch('+realIdx+')"><div class="left"><div class="'+timeClass+'">'+getTime(m.timestamp)+'</div><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div></div><div class="mid">'+sc(m)+'</div></div>';
-  });
+    let realIdx=allData.indexOf(m);
+    h+='<div class="'+cls+'" data-i="'+realIdx+'"><div class="left"><div class="'+timeClass+'">'+getTime(m.timestamp)+'</div><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div></div><div class="mid">'+sc(m)+'</div></div>';
+  }
   list.innerHTML=h;
+  document.querySelectorAll('.card').forEach(function(el){
+    el.onclick=function(){openMatch(parseInt(el.getAttribute('data-i')))};
+  });
 }
 function openMatch(i){
-  let m=allData[i]; if(!m) return;
-  document.getElementById('mLeague').textContent=m.country+' • '+m.league;
+  let m=allData[i];if(!m)return;
+  document.getElementById('mLeague').textContent=m.country+' - '+m.league;
   document.getElementById('mTeams').innerHTML='<div class="teamRow"><span>'+m.home+'</span><b>'+m.score.split('-')[0]+'</b></div><div class="teamRow"><span>'+m.away+'</span><b>'+m.score.split('-')[1]+'</b></div>';
-  document.getElementById('mHT').textContent=m.ht||'0-0';
-  document.getElementById('mFT').textContent=m.ft||m.score;
-  document.getElementById('mST').textContent=m.longStatus||m.status;
-  document.getElementById('mInfo').textContent=(m.status==='NS' ? 'Kick-off: '+getTime(m.timestamp) : (m.elapsed? m.elapsed+"' • "+m.longStatus : m.longStatus));
+  document.getElementById('mHT').textContent=m.ht;
+  document.getElementById('mFT').textContent=m.ft;
+  document.getElementById('mST').textContent=m.longStatus;
+  let info=m.status==='NS'?'Kick-off: '+getTime(m.timestamp):(m.elapsed?m.elapsed+"' - "+m.longStatus:m.longStatus);
+  document.getElementById('mInfo').textContent=info;
   document.getElementById('modal').classList.add('show');
 }
-function closeModal(e){document.getElementById('modal').classList.remove('show');}
 buildDates();load();
-<\/script></body></html>`, { headers: { ...cors, "Content-Type":"text/html" } });
+</script></body></html>`;
+
+    return new Response(html, { headers: { ...cors, "Content-Type": "text/html" } });
   }
 }
