@@ -16,41 +16,48 @@ let league=f.league?.name||"League";
 let home=f.teams?.home?.name||"Home";
 let away=f.teams?.away?.name||"Away";
 let status=f.fixture?.status?.short||"NS";
+let longStatus=f.fixture?.status?.long||status;
 let minute=f.fixture?.status?.elapsed||"";
 let ts=f.fixture?.timestamp;
 let timeStr="00:00";
 if(ts){let d=new Date(ts*1000);timeStr=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Africa/Lagos'});}
 let hs=f.goals?.home; let as=f.goals?.away;
+let ht=f.score?.halftime; let ft=f.score?.fulltime;
 let hasScore=hs!=null && as!=null;
 let isLive=["1H","2H","HT","ET","LIVE","P","BT"].includes(status)||!!minute;
-data.push({id:String(f.fixture?.id),country,league,time:timeStr,minute,status,home,away,home_score:hasScore?String(hs):null,away_score:hasScore?String(as):null,hasScore,isLive});
+data.push({
+id:String(f.fixture?.id),country,league,time:timeStr,minute,status,longStatus,
+home,away,
+home_score:hasScore?String(hs):null,away_score:hasScore?String(as):null,
+ht_home:ht?.home!=null?String(ht.home):null, ht_away:ht?.away!=null?String(ht.away):null,
+ft_home:ft?.home!=null?String(ft.home):null, ft_away:ft?.away!=null?String(ft.away):null,
+hasScore,isLive
+});
 });
 data.sort((a,b)=>(a.country+a.league).localeCompare(b.country+b.league)||a.time.localeCompare(b.time));
 return new Response(JSON.stringify({count:data.length,data}),{headers:{"Content-Type":"application/json",...cors}});
-}catch(e){return new Response(JSON.stringify({count:0,data:[],error:String(e)}),{headers:{"Content-Type":"application/json",...cors}});}
+}catch(e){return new Response(JSON.stringify({count:0,data:[],error:e.message}),{headers:{"Content-Type":"application/json",...cors}});}
 }
 
 return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
 *{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui,Arial;font-size:13px}
 .h{background:#000;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;border-bottom:2px solid #00c853}
-.h b{color:#00e676;font-size:18px;letter-spacing:.5px} .h span{background:#00c853;color:#000;padding:5px 12px;border-radius:20px;font-weight:900;font-size:11px}
+.h b{color:#00e676;font-size:18px} .h span{background:#00c853;color:#000;padding:5px 12px;border-radius:20px;font-weight:900;font-size:11px}
 .dates{display:flex;gap:7px;overflow:auto;padding:10px;background:#000;border-bottom:1px solid #111}
-.d{min-width:70px;background:#111;color:#777;border:1px solid #222;border-radius:12px;padding:8px 6px;text-align:center;cursor:pointer;font-size:11px;transition:.2s}
+.d{min-width:70px;background:#111;color:#777;border:1px solid #222;border-radius:12px;padding:8px 6px;text-align:center;cursor:pointer;font-size:11px}
 .d.active{background:#00c853;color:#000;border-color:#00c853;font-weight:900} .d.active b,.d.active small{color:#000}
-.d b{display:block;color:#fff;font-size:13px} .d small{opacity:.8}
-.country-bar{background:#0a0a0a;color:#00e676;padding:10px 12px;font-weight:900;font-size:11px;text-transform:uppercase;display:flex;justify-content:space-between;border-left:4px solid #00c853;border-bottom:1px solid #111;letter-spacing:.6px}
-.match-row{display:flex;gap:10px;padding:12px 10px;background:#111;border-bottom:1px solid #1a1a1a;cursor:pointer;transition:.15s}
-.match-row:hover{background:#1a1a1a} .match-row:active{background:#222}
-.t{width:50px;font-weight:900;color:#888;font-size:12px} .t.live{color:#00e676;animation:blink 1s infinite} .teams{flex:1;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .teams b{color:#fff}
+.d b{display:block;color:#fff;font-size:13px}
+.country-bar{background:#0a0a0a;color:#00e676;padding:10px 12px;font-weight:900;font-size:11px;text-transform:uppercase;display:flex;justify-content:space-between;border-left:4px solid #00c853;border-bottom:1px solid #111}
+.match-row{display:flex;gap:10px;padding:12px 10px;background:#111;border-bottom:1px solid #1a1a1a;cursor:pointer} .match-row:hover{background:#1a1a1a}
+.t{width:50px;font-weight:900;color:#888;font-size:12px} .t.live{color:#00e676} .teams{flex:1;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .score{width:50px;text-align:right;font-weight:900;font-size:13px} .score.live{color:#00e676} .score.finished{color:#fff} .score.dash{color:#444}
-@keyframes blink{50%{opacity:.4}}
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:flex-end;z-index:99}
-#modal.show{display:flex} .modal-box{width:100%;background:#0f0f0f;border-top:3px solid #00c853;border-radius:18px 18px 0 0;padding:16px;animation:up .25s}
-@keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+#modal.show{display:flex} .modal-box{width:100%;background:#0f0f0f;border-top:3px solid #00c853;border-radius:18px 18px 0 0;padding:16px}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px} .modal-head b{color:#00e676}
 .close{width:32px;height:32px;border-radius:50%;background:#222;color:#fff;border:1px solid #333;display:grid;place-items:center;cursor:pointer}
-.stat{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #1a1a1a} .stat span:last-child{color:#00e676;font-weight:800}
+.stat{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #1a1a1a} .stat span:last-child{color:#00e676;font-weight:800} .stat.ht span:last-child{color:#ffcc00} .stat.ft span:last-child{color:#00e676;font-size:15px}
 .btn{margin-top:12px;width:100%;background:#00c853;color:#000;border:0;padding:12px;border-radius:12px;font-weight:900;cursor:pointer}
+.badge{padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900} .badge-ft{background:#00c853;color:#000} .badge-ht{background:#333;color:#ffcc00} .badge-live{background:#c00;color:#fff}
 </style></head><body>
 <div class="h"><b>DIAMOND LIVESCORE</b><span id="src">0 matches</span></div>
 <div class="dates" id="dates"></div>
@@ -59,7 +66,7 @@ return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name
 <script>
 var dates=document.getElementById('dates'),list=document.getElementById('list'),modal=document.getElementById('modal'),all=[],gData={};
 function build(){var h='';for(var i=-3;i<=4;i++){var d=new Date();d.setDate(d.getDate()+i);var iso=d.toISOString().slice(0,10);var lab=i==0?'TODAY':i==-1?'YEST':i==1?'TOM':d.toLocaleDateString('en',{weekday:'short'});var num=d.getDate()+' '+d.toLocaleDateString('en',{month:'short'});var act=i==0?' active':'';h+='<div class="d'+act+'" onclick="load(\\''+iso+'\\',this)"><small>'+lab+'</small><b>'+num+'</b></div>';}dates.innerHTML=h;}
-function openMatch(id){var m=gData[id];if(!m)return;document.getElementById('mTitle').innerText=m.country+': '+m.league;document.getElementById('mBody').innerHTML='<div class="stat"><span>Match</span><span>'+m.home+' vs '+m.away+'</span></div><div class="stat"><span>Time</span><span>'+m.time+(m.minute?' ('+m.minute+"'"+')':'')+'</span></div><div class="stat"><span>Status</span><span>'+m.status+'</span></div><div class="stat"><span>Score</span><span>'+(m.hasScore?m.home_score+' - '+m.away_score:'Not Started')+'</span></div><div class="stat"><span>League</span><span>'+m.league+'</span></div><div class="stat"><span>Country</span><span>'+m.country+'</span></div>';modal.classList.add('show');}
+function openMatch(id){var m=gData[id];if(!m)return;var htText=(m.ht_home!=null&&m.ht_away!=null)?m.ht_home+' - '+m.ht_away:'-';var ftText=(m.ft_home!=null&&m.ft_away!=null)?m.ft_home+' - '+m.ft_away:(m.hasScore?m.home_score+' - '+m.away_score:'-');var statusBadge=m.status=='FT'?'<span class="badge badge-ft">FT</span>':m.status=='HT'?'<span class="badge badge-ht">HT</span>':m.isLive?'<span class="badge badge-live">LIVE '+ (m.minute?m.minute+"'" : "")+'</span>':'<span class="badge">'+m.status+'</span>';document.getElementById('mTitle').innerText=m.country+': '+m.league;document.getElementById('mBody').innerHTML='<div class="stat"><span>Match</span><span>'+m.home+' vs '+m.away+'</span></div><div class="stat"><span>Time</span><span>'+m.time+' '+statusBadge+'</span></div><div class="stat"><span>Status</span><span>'+m.longStatus+'</span></div><div class="stat ht"><span>HT Result (Half Time)</span><span>'+htText+'</span></div><div class="stat ft"><span>FT Result (Full Time)</span><span>'+ftText+'</span></div><div class="stat"><span>League</span><span>'+m.league+'</span></div><div class="stat"><span>Country</span><span>'+m.country+'</span></div>';modal.classList.add('show');}
 function closeModal(){modal.classList.remove('show');}
 async function load(iso,el){
 if(el){document.querySelectorAll('.d').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
@@ -85,7 +92,7 @@ list.innerHTML=out;
 }catch(e){list.innerHTML='<div style="padding:20px;color:#f44">Error '+e.message+'</div>';}
 }
 build();load(new Date().toISOString().slice(0,10));
-setInterval(()=>{var el=document.querySelector('.d.active');var iso=el?el.getAttribute('onclick').match(/'([^']+)'/)[1]:new Date().toISOString().slice(0,10);load(iso);},60000);
+setInterval(()=>{var el=document.querySelector('.d.active');if(el){var iso=el.getAttribute('onclick').match(/'([^']+)'/)[1];load(iso,el);}},60000);
 <\/script></body></html>`,{headers:{"Content-Type":"text/html",...cors}});
 }
 }
