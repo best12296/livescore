@@ -21,7 +21,7 @@ export default {
         (j.response||[]).forEach(f=>{
           let short=f.fixture?.status?.short||"NS"; let longSt=f.fixture?.status?.long||"";
           let st=short; if(short==="FT"||longSt==="Match Finished"||short==="AET"||short==="PEN") st="FT";
-          data.push({ id:f.fixture?.id, country:(f.league?.country||"WORLD").toUpperCase(), league:f.league?.name, timestamp:f.fixture?.timestamp, status:st, elapsed:f.fixture?.status?.elapsed, home:f.teams?.home?.name, away:f.teams?.away?.name, score:`${f.goals?.home??0}-${f.goals?.away??0}`, hLogo:f.teams?.home?.logo, aLogo:f.teams?.away?.logo });
+          data.push({ id:f.fixture?.id, country:(f.league?.country||"WORLD").toUpperCase(), league:f.league?.name, timestamp:f.fixture?.timestamp, status:st, elapsed:f.fixture?.status?.elapsed, home:f.teams?.home?.name, away:f.teams?.away?.name, score:`${f.goals?.home??0}-${f.goals?.away??0}` });
         });
         data.sort((a,b)=>a.country.localeCompare(b.country)||a.league.localeCompare(b.league));
         return new Response(JSON.stringify({ count:data.length, data }), { headers: { ...cors, "Content-Type":"application/json", "Cache-Control":"no-cache" } });
@@ -101,18 +101,14 @@ async function load(dateStr){
     let cls=m.status==='FT'?'card ft':(live?'card live':'card');
     let timeTxt=getTime(m.timestamp);
     let timeClass=m.status==='NS'?'time ns':'time';
-    // CLICKABLE CARD
     h+='<div class="'+cls+'" onclick="openMatch('+m.id+')"><div class="left"><div class="'+timeClass+'">'+timeTxt+'</div><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div></div><div class="mid">'+sc(m)+'</div></div>';
   });
   list.innerHTML=h;
 }
 function openMatch(id){
-  // make everything clickable - go to details or just vibrate
-  window.location.href='/api/matches?id='+id;
-  // you can later change to your own details page: /match.html?id=
-  alert('Match ID: '+id+' - You can create match details page later');
+  alert('Match ID: '+id);
 }
-buildDates();load();setInterval(()=>load(fmtDate(selectedDate)),60000);
+buildDates();load();
 </script></body></html>`, { headers: { ...cors, "Content-Type":"text/html" } });
   }
 }
