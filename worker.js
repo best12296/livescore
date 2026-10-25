@@ -5,16 +5,10 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
     const KEYS = [env.API_FOOTBALL_KEY, env.API_FOOTBALL_KEY2].filter(Boolean);
 
-    function isYouth(league){
-      const x = league.toLowerCase();
-      return x.includes("u18")||x.includes("u19")||x.includes("u20")||x.includes("u21")||x.includes("u23")||x.includes("women")||x.includes("youth")||x.includes("reserve")||x.includes("academy");
-    }
-
+    function isYouth(league){ const x=league.toLowerCase(); return x.includes("u18")||x.includes("u19")||x.includes("u20")||x.includes("u21")||x.includes("u23")||x.includes("women")||x.includes("youth")||x.includes("reserve")||x.includes("academy"); }
     function getPriority(leagueName, countryName){
-      const l=(leagueName||"").toLowerCase().trim(); 
-      const c=(countryName||"").toLowerCase().trim();
+      const l=(leagueName||"").toLowerCase().trim(); const c=(countryName||"").toLowerCase().trim();
       if(isYouth(leagueName)) return { rank:999, displayCountry:null };
-      // TOP 9 EXACT ONLY
       if(l==="uefa champions league") return { rank:1, displayCountry:"EUROPE" };
       if(l==="uefa europa league") return { rank:2, displayCountry:"EUROPE" };
       if(l==="premier league" && c==="england") return { rank:10, displayCountry:"ENGLAND" };
@@ -30,7 +24,7 @@ export default {
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||new Date().toISOString().slice(0,10); 
       const force=url.searchParams.get("refresh")==="1";
-      const cacheKey=new Request("https://cache.local/v8-ALL-GREEN-FINAL-"+date); 
+      const cacheKey=new Request("https://cache.local/v9-WORKING-"+date); 
       const cache=caches.default;
       if(!force){ const cached=await cache.match(cacheKey); if(cached) return new Response(await cached.text(), { headers:{...cors,"Content-Type":"application/json"}}); }
       let finalData=null;
@@ -62,7 +56,6 @@ header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px
 .filters{display:flex;gap:8px;margin-top:12px;align-items:center}.f{border:1px solid #333;background:#111;color:#888;padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer}.f.active{background:#fff;color:#000;font-weight:900}
 .refresh{margin-left:auto;background:#111;border:1px solid #0f0;color:#0f0;padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer}
 .country{background:#00ff00 !important;color:#000 !important;padding:11px 12px;margin-top:12px;font-size:13px;border-left:4px solid #fff !important;display:flex;justify-content:space-between;font-weight:900}
-.country.top{background:#00ff00 !important;color:#000 !important}
 .card{background:#111;border:1px solid #222;margin:6px 8px;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
 .card.live{border-left:3px solid #0f0;background:#0f0f0f}.card.ft{border-left:3px solid #444}
 .left{display:flex;gap:10px;align-items:center}.time{color:#0f0;font-size:12px;min-width:45px;text-align:center;background:#0f0f0f;border:1px solid #0f0;padding:4px 6px;border-radius:6px}.time.ns{color:#888;background:#111;border-color:#333}
@@ -86,14 +79,12 @@ function setFilter(t){currentFilter=t;document.querySelectorAll('.f').forEach(fu
 document.getElementById('f-all').onclick=function(){setFilter('all')};document.getElementById('f-live').onclick=function(){setFilter('live')};document.getElementById('f-ft').onclick=function(){setFilter('ft')};document.getElementById('refreshBtn').onclick=function(){load(fmtDate(selectedDate), true)};document.getElementById('closeBtn').onclick=function(){document.getElementById('modal').classList.remove('show')};document.getElementById('modal').onclick=function(e){if(e.target.id==='modal')e.currentTarget.classList.remove('show')};
 async function load(d, force){if(!d)d=fmtDate(selectedDate);list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading '+d+'...</div>';let url='/api/matches?date='+d+(force?'&refresh=1':'');let r=await fetch(url);let j=await r.json();allData=j.data||[];render(allData);}
 function render(data){
-let filtered=data;if(currentFilter==='live')filtered=data.filter(function(m){return m.elapsed!=='' && m.status!=='FT'});if(currentFilter==='ft')filtered=data.filter(function(m){return m.status==='FT'});if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No '+currentFilter+' matches</div>';return}
+let filtered=data;if(currentFilter==='live')filtered=data.filter(function(m){return m.elapsed!=='' && m.status!=='FT'});if(currentFilter==='ft')filtered=data.filter(function(m){return m.status==='FT'});if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No '+currentFilter+' matches for today. Try other date or press Refresh.</div>';return}
 let h='';let lc='';let ll='';
 for(let idx=0;idx<filtered.length;idx++){
 let m=filtered[idx];
 if(m.country!==lc || m.league!==ll){
-// FORCED GREEN - NO BLACK EVER
-let isTop=m.rank<100;
-h+='<div class="country top" style="background:#00ff00 !important;color:#000 !important;border-left:4px solid #fff !important;display:flex;justify-content:space-between;font-weight:900;padding:11px 12px;margin-top:12px;font-size:13px;"><span>'+m.country+' - '+m.league+'</span><span>'+(isTop?'★':'')+'</span></div>';
+h+='<div class="country top" style="background:#00ff00 !important;color:#000 !important;border-left:4px solid #fff !important;display:flex;justify-content:space-between;font-weight:900;padding:11px 12px;margin-top:12px;font-size:13px;"><span>'+m.country+' - '+m.league+'</span><span>'+(m.rank<100?'★':'')+'</span></div>';
 lc=m.country;ll=m.league;
 }
 let cls=m.status==='FT'?'card ft':(m.elapsed!==''?'card live':'card');let timeClass=m.status==='NS'?'time ns':'time';let realIdx=allData.indexOf(m);
