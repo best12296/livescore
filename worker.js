@@ -10,151 +10,104 @@ export default {
     const KEY = env.API_FOOTBALL_KEY;
     const cache = caches.default;
 
-    // API
     if (url.pathname === "/api/matches") {
-      const date = url.searchParams.get("date") || new Date().toISOString().slice(0,10);
+      const date = url.searchParams.get("date") || new Date().toISOString().slice(0, 10);
       const cacheKey = new Request(url.toString(), request);
       let cached = await cache.match(cacheKey);
-      if (cached) {
-        let r = new Response(cached.body, cached);
-        r.headers.set("Access-Control-Allow-Origin", "*");
-        return r;
-      }
-      if (!KEY) {
-        return new Response(JSON.stringify({ error: "Missing API_FOOTBALL_KEY", count: 0, data: [] }), { headers: { ...cors, "Content-Type": "application/json" } });
-      }
+      if (cached) { let r = new Response(cached.body, cached); r.headers.set("Access-Control-Allow-Origin", "*"); return r; }
+      if (!KEY) return new Response(JSON.stringify({ count: 0, data: [], error: "NO KEY" }), { headers: { ...cors, "Content-Type": "application/json" } });
       try {
-        const apiRes = await fetch(`https://v3.football.api-sports.io/fixtures?date=${date}`, {
-          headers: { "x-apisports-key": KEY }
-        });
+        const apiRes = await fetch(`https://v3.football.api-sports.io/fixtures?date=${date}`, { headers: { "x-apisports-key": KEY } });
         const j = await apiRes.json();
         let data = [];
         (j.response || []).forEach(f => {
-          let country = (f.league?.country || "WORLD").toUpperCase();
-          let league = f.league?.name || "";
           let short = f.fixture?.status?.short || "NS";
           let longStatus = f.fixture?.status?.long || "";
-          let ts = f.fixture?.timestamp;
-          let hs = f.goals?.home;
-          let as = f.goals?.away;
-          let ht = f.score?.halftime;
-          let elapsed = f.fixture?.status?.elapsed;
-          
-          // FORCE FT - NEVER SHOW 90'
           let status = short;
-          if (short === "FT" || longStatus === "Match Finished") status = "FT";
-          if (short === "AET" || short === "PEN") status = "FT";
-
+          if (short === "FT" || longStatus === "Match Finished" || short === "AET" || short === "PEN") status = "FT";
           data.push({
-            id: String(f.fixture?.id),
-            country, league,
-            timestamp: ts,
+            id: f.fixture?.id,
+            country: (f.league?.country || "WORLD").toUpperCase(),
+            league: f.league?.name || "",
+            timestamp: f.fixture?.timestamp,
             status: status,
-            longStatus: longStatus,
-            elapsed: elapsed,
+            elapsed: f.fixture?.status?.elapsed,
             home: f.teams?.home?.name,
             away: f.teams?.away?.name,
-            score: `${hs ?? 0}-${as ?? 0}`,
-            htScore: ht ? `${ht.home ?? 0}-${ht.away ?? 0}` : null
+            score: `${f.goals?.home ?? 0}-${f.goals?.away ?? 0}`
           });
         });
-        data.sort((a,b) => a.country.localeCompare(b.country) || a.league.localeCompare(b.league));
-        let resp = new Response(JSON.stringify({ count: data.length, data }), {
-          headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "public, max-age=60" }
-        });
+        data.sort((a,b)=> a.country.localeCompare(b.country) || a.league.localeCompare(b.league));
+        let resp = new Response(JSON.stringify({ count: data.length, data }), { headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "public, max-age=30" } });
         await cache.put(cacheKey, resp.clone());
         return resp;
       } catch (e) {
-        return new Response(JSON.stringify({ count: 0, data: [], error: String(e) }), { headers: { ...cors, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ count: 0, data: [] }), { headers: { ...cors, "Content-Type": "application/json" } });
       }
     }
 
-    // FRONTEND
     return new Response(`<!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DIAMOND LIVESCORE</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#000;color:#fff;font-family:Arial,sans-serif}
-header{position:sticky;top:0;background:#000;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #222;z-index:10}
-#date{ background:#111;color:#fff;border:1px solid #333;padding:8px 12px;border-radius:20px}
-.country{padding:12px 10px 4px;font-weight:bold;color:#aaa;font-size:13px}
-.league{padding:0 10px 6px;color:#666;font-size:12px}
-.card{background:#111;border:1px solid #222;margin:0 8px 8px;border-radius:10px;padding:10px;display:flex;justify-content:space-between;align-items:center}
-.card.live{border-left:3px solid #0f0}
-.card.ft{border-left:3px solid #555}
-.team{font-size:14px;line-height:18px}
-.score{font-weight:bold;font-size:16px;text-align:center;min-width:80px}
-.status{font-size:12px;color:#888}
-.status.ft{color:#fff;font-weight:bold}
-.status.live{color:#0f0;font-weight:bold}
+body{margin:0;background:#000;color:#fff;font-family:Arial;font-weight:600}
+header{position:sticky;top:0;background:#000;padding:14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #0f0;z-index:99}
+header b{color:#0f0;letter-spacing:1px}
+#date{background:#0a0a0a;color:#0f0;border:1px solid #0f0;padding:7px 12px;border-radius:20px;outline:none}
+#list{padding-bottom:20px}
+.country{background:#0a0a0a;color:#0f0;padding:10px 12px;margin-top:12px;font-size:12px;border-left:3px solid #0f0;letter-spacing:1px}
+.league{color:#666;padding:6px 12px;font-size:11px}
+.card{background:#111;border:1px solid #222;margin:6px 8px;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center}
+.card.live{border-left:3px solid #0f0; background:#0f0f0f}
+.card.ft{border-left:3px solid #333}
+.teams{line-height:20px;font-size:14px}
+.mid{text-align:center;min-width:80px}
+.score{font-size:18px;color:#fff;font-weight:900}
+.st{font-size:11px;margin-top:3px}
+.st.live{color:#0f0;font-weight:900}
+.st.ft{color:#fff;background:#222;padding:2px 8px;border-radius:10px;display:inline-block}
+.st.ns{color:#888}
+.vs{color:#555;font-size:14px}
 </style>
 </head>
 <body>
 <header><b>DIAMOND LIVESCORE</b><input type="date" id="date"></header>
 <div id="list">Loading...</div>
 <script>
-const dateInput = document.getElementById('date');
-const list = document.getElementById('list');
-dateInput.valueAsDate = new Date();
-
-// FORCE FT - NEVER SHOW 90' - 2 BACK 2 FRONT ONLY - 2 is +2
-function getDisplayStatus(m){
-  let s = m.status;
-  if(s === 'FT') return '<span class="status ft">FT</span>';
-  if(s === 'HT') return '<span class="status live">HT</span>';
-  if(m.elapsed){ return '<span class="status live">' + m.elapsed + "'</span>"; }
-  if(s === 'NS'){
-    // 2 BACK 2 FRONT ONLY: add +1 hour for Nigeria WAT, display
-    if(m.timestamp){
-      let d = new Date(m.timestamp*1000);
-      // +1 hour
-      d.setHours(d.getHours()+1);
-      return '<span class="status">'+ d.toISOString().slice(11,16) +'</span>';
-    }
-    return '<span class="status">NS</span>';
-  }
-  return '<span class="status">'+s+'</span>';
+const d=document.getElementById('date'), list=document.getElementById('list');
+d.valueAsDate=new Date();
+function fmt(m){
+ if(m.status==='FT') return '<div class="st ft">FT</div>';
+ if(m.status==='HT') return '<div class="st live">HT</div>';
+ if(m.elapsed && m.status!=='FT') return '<div class="st live">'+m.elapsed+"'"+"</div>";
+ if(m.timestamp){
+   let x=new Date(m.timestamp*1000); x.setHours(x.getHours()+1);
+   return '<div class="st ns">'+x.toISOString().slice(11,16)+'</div>';
+ }
+ return '<div class="st ns">'+m.status+'</div>';
 }
-
-function getScore(m){
-  if(m.status === 'NS') return 'VS';
-  return m.score;
-}
-
+function sc(m){ return m.status==='NS' ? '<div class="vs">VS</div>' : '<div class="score">'+m.score+'</div>'; }
 async function load(){
-  list.innerHTML='Loading...';
-  let d = dateInput.value;
-  try{
-    let r = await fetch('/api/matches?date='+d);
-    let j = await r.json();
-    let data = j.data || [];
-    if(data.length===0){ list.innerHTML='<div style="padding:20px;text-align:center;color:#666">No matches for '+d+'</div>'; return; }
-    let html='';
-    let lastCountry='';
-    let lastLeague='';
-    data.forEach(m=>{
-      if(m.country!==lastCountry){
-        html+='<div class="country">'+m.country+'</div>';
-        lastCountry=m.country; lastLeague='';
-      }
-      if(m.league!==lastLeague){
-        html+='<div class="league">'+m.league+'</div>';
-        lastLeague=m.league;
-      }
-      let isLive = m.elapsed && m.status!=='FT';
-      let cls = m.status==='FT' ? 'card ft' : (isLive ? 'card live' : 'card');
-      html+='<div class="'+cls+'"><div class="team"><div>'+m.home+'</div><div>'+m.away+'</div></div><div class="score"><div>'+getScore(m)+'</div>'+getDisplayStatus(m)+'</div></div>';
-    });
-    list.innerHTML=html;
-  }catch(e){ list.innerHTML='Error: '+e; }
+ list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading...</div>';
+ let date=d.value;
+ let r=await fetch('/api/matches?date='+date); let j=await r.json();
+ let data=j.data||[];
+ if(!data.length){ list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No matches for '+date+'<br><small>Change date to yesterday</small></div>'; return; }
+ let h='', lc='', ll='';
+ data.forEach(m=>{
+  if(m.country!==lc){ h+='<div class="country">'+m.country+'</div>'; lc=m.country; ll=''; }
+  if(m.league!==ll){ h+='<div class="league">'+m.league+'</div>'; ll=m.league; }
+  let live=m.elapsed && m.status!=='FT';
+  let cls= m.status==='FT' ? 'card ft' : (live ? 'card live' : 'card');
+  h+='<div class="'+cls+'"><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div><div class="mid">'+sc(m)+fmt(m)+'</div></div>';
+ });
+ list.innerHTML=h;
 }
-dateInput.addEventListener('change', load);
-load();
-setInterval(load, 60000);
-</script>
+d.addEventListener('change',load); load(); setInterval(load,60000);
+<\/script>
 </body>
 </html>`, { headers: { ...cors, "Content-Type": "text/html; charset=utf-8" } });
   }
