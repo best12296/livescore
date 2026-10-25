@@ -13,24 +13,20 @@ export default {
         if(j.errors && Object.keys(j.errors).length>0){
            return new Response(JSON.stringify({ api_error: j.errors, count:0, data:[] }), { headers: { ...cors, "Content-Type":"application/json" } });
         }
-        if(!j.response || j.response.length===0){
-           apiRes = await fetch(`https://v3.football.api-sports.io/fixtures?live=all`, { headers: { "x-apisports-key": KEY } });
-           j = await apiRes.json();
-        }
         let data=[];
         (j.response||[]).forEach(f=>{
-          let short=f.fixture?.status?.short||"NS"; let longSt=f.fixture?.status?.long||"";
+          let short=f.fixture?.status?.short||"NS";
+          let longSt=f.fixture?.status?.long||"";
           let st=short; if(short==="FT"||longSt==="Match Finished"||short==="AET"||short==="PEN") st="FT";
           data.push({ id:f.fixture?.id, country:(f.league?.country||"WORLD").toUpperCase(), league:f.league?.name, timestamp:f.fixture?.timestamp, status:st, elapsed:f.fixture?.status?.elapsed, home:f.teams?.home?.name, away:f.teams?.away?.name, score:`${f.goals?.home??0}-${f.goals?.away??0}` });
         });
         data.sort((a,b)=>a.country.localeCompare(b.country)||a.league.localeCompare(b.league));
-        return new Response(JSON.stringify({ count:data.length, data }), { headers: { ...cors, "Content-Type":"application/json", "Cache-Control":"no-cache" } });
+        return new Response(JSON.stringify({ count:data.length, data }), { headers: { ...cors, "Content-Type":"application/json", "Cache-Control":"no-store" } });
       } catch(e){ return new Response(JSON.stringify({ error:e.message, count:0, data:[] }), { headers: { ...cors, "Content-Type":"application/json" } }); }
     }
     return new Response(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
 body{margin:0;background:#000;color:#fff;font-family:Arial;font-weight:700}
 header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px solid #0f0;z-index:99}
-.top{display:flex;justify-content:space-between;align-items:center}
 .top b{color:#0f0;font-size:18px}
 .dates{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding-bottom:4px}
 .dates::-webkit-scrollbar{display:none}
@@ -38,7 +34,7 @@ header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px
 .d.active{background:#0f0;color:#000;border-color:#0f0;font-weight:900}
 .country{background:#0a0a0a;color:#0f0;padding:10px 12px;margin-top:12px;font-size:12px;border-left:3px solid #0f0}
 .league{color:#666;padding:6px 12px;font-size:11px}
-.card{background:#111;border:1px solid #222;margin:6px 8px;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:0.2s}
+.card{background:#111;border:1px solid #222;margin:6px 8px;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
 .card:active{transform:scale(0.97);border-color:#0f0}
 .card.live{border-left:3px solid #0f0;background:#0f0f0f}
 .card.ft{border-left:3px solid #444}
@@ -51,11 +47,7 @@ header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px
 .min{font-size:11px;margin-top:4px;color:#0f0;font-weight:900}
 .ftbadge{color:#fff;background:#333;padding:2px 8px;border-radius:10px;font-size:11px;display:inline-block}
 </style></head><body>
-<header>
-<div class="top"><b>DIAMOND LIVESCORE</b></div>
-<div class="dates" id="dates"></div>
-</header>
-<div id="list">Loading...</div>
+<header><div class="top"><b>DIAMOND LIVESCORE</b></div><div class="dates" id="dates"></div></header><div id="list">Loading...</div>
 <script>
 const list=document.getElementById('list'), datesEl=document.getElementById('dates');
 let selectedDate=new Date();
@@ -88,11 +80,11 @@ function sc(m){
 }
 async function load(dateStr){
   if(!dateStr) dateStr=fmtDate(selectedDate);
-  list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading...</div>';
+  list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading '+dateStr+'...</div>';
   let r=await fetch('/api/matches?date='+dateStr+'&t='+Date.now());
   let j=await r.json();
   let data=j.data||[];
-  if(!data.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No matches for '+dateStr+'</div>';return}
+  if(!data.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No matches for '+dateStr+'<br><br><span style="color:#0f0;font-size:12px">Try Sat 24 or Mon 26</span></div>';return}
   let h='',lc='',ll='';
   data.forEach(m=>{
     if(m.country!==lc){h+='<div class="country">'+m.country+'</div>';lc=m.country;ll=''}
@@ -105,9 +97,7 @@ async function load(dateStr){
   });
   list.innerHTML=h;
 }
-function openMatch(id){
-  alert('Match ID: '+id);
-}
+function openMatch(id){ location.href='#match-'+id; }
 buildDates();load();
 </script></body></html>`, { headers: { ...cors, "Content-Type":"text/html" } });
   }
