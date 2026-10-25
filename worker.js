@@ -5,11 +5,36 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
     const KEYS = [env.API_FOOTBALL_KEY, env.API_FOOTBALL_KEY2].filter(Boolean);
 
+    const TOP_LEAGUES = [
+      { key: "champions league", rank: 1, label: "EUROPE" },
+      { key: "europa league", rank: 2, label: "EUROPE" },
+      { key: "europa conference", rank: 3, label: "EUROPE" },
+      { key: "premier league", rank: 10, label: "ENGLAND", country: "england" },
+      { key: "la liga", rank: 11, label: "SPAIN", country: "spain" },
+      { key: "ligue 1", rank: 12, label: "FRANCE", country: "france" },
+      { key: "bundesliga", rank: 13, label: "GERMANY", country: "germany", exact: true },
+      { key: "serie a", rank: 14, label: "ITALY", country: "italy" },
+      { key: "eredivisie", rank: 15, label: "NETHERLANDS", country: "netherlands" },
+      { key: "championship", rank: 16, label: "ENGLAND", country: "england" }
+    ];
+
+    function getPriority(leagueName, countryName){
+      const l = (leagueName||"").toLowerCase();
+      const c = (countryName||"").toLowerCase();
+      for(const t of TOP_LEAGUES){
+        if(t.exact){
+          if(l===t.key && (!t.country || c===t.country)) return { rank: t.rank, displayCountry: t.label };
+        } else {
+          if(l.includes(t.key) && (!t.country || c===t.country || t.label==="EUROPE")) return { rank: t.rank, displayCountry: t.label };
+        }
+      }
+      return { rank: 999, displayCountry: null };
+    }
+
     if (url.pathname === "/api/matches") {
       const date = url.searchParams.get("date") || new Date().toISOString().slice(0,10);
       const force = url.searchParams.get("refresh") === "1";
-      // V3 cache to force new data with HT FT
-      const cacheKey = new Request("https://cache.local/v3-" + date);
+      const cacheKey = new Request("https://cache.local/v4-" + date);
       const cache = caches.default;
       if (!force) {
         const cached = await cache.match(cacheKey);
@@ -25,12 +50,16 @@ export default {
           }
           const data = [];
           for (const f of (j.response || [])) {
+            const league = f.league?.name || "";
+            const country = f.league?.country || "WORLD";
+            const p = getPriority(league, country);
             const short = f.fixture?.status?.short || "NS";
-            let st = short;
-            if (short === "FT") st = "FT";
+            let st = short; if (short === "FT") st = "FT";
             data.push({
-              country: (f.league?.country || "WORLD").toUpperCase(),
-              league: f.league?.name,
+              id: f.fixture?.id,
+              rawCountry: country,
+              country: (p.displayCountry || country).toUpperCase(),
+              league: league,
               timestamp: f.fixture?.timestamp,
               status: st,
               elapsed: f.fixture?.status?.elapsed || "",
@@ -39,19 +68,24 @@ export default {
               score: (f.goals?.home ?? 0) + "-" + (f.goals?.away ?? 0),
               ht: (f.score?.halftime?.home ?? "-") + "-" + (f.score?.halftime?.away ?? "-"),
               ft: (f.score?.fulltime?.home ?? f.goals?.home ?? 0) + "-" + (f.score?.fulltime?.away ?? f.goals?.away ?? 0),
-              longStatus: f.fixture?.status?.long || st
+              longStatus: f.fixture?.status?.long || st,
+              rank: p.rank
             });
           }
-          data.sort((a,b)=> a.country.localeCompare(b.country));
+          // SORT: Top leagues first, then A-Z country
+          data.sort((a,b)=>{
+            if(a.rank!==b.rank) return a.rank-b.rank;
+            if(a.country!==b.country) return a.country.localeCompare(b.country);
+            return a.league.localeCompare(b.league);
+          });
           finalData = { count: data.length, data: data };
           break;
         } catch (e) {}
       }
       if (!finalData) return new Response(JSON.stringify({ count:0, data:[] }), { headers: { ...cors, "Content-Type":"application/json" } });
       const txt = JSON.stringify(finalData);
-      const toCache = new Response(txt, { headers: { "Content-Type":"application/json", "Cache-Control":"max-age=3600" } });
-      ctx.waitUntil(cache.put(cacheKey, toCache));
-      return new Response(txt, { headers: { ...cors, "Content-Type":"application/json", "X-Cache":"MISS" } });
+      ctx.waitUntil(cache.put(cacheKey, new Response(txt, { headers: { "Content-Type":"application/json", "Cache-Control":"max-age=3600" } })));
+      return new Response(txt, { headers: { ...cors, "Content-Type":"application/json" } });
     }
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
@@ -62,7 +96,8 @@ header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px
 .d{border:1px solid #333;background:#111;color:#888;padding:8px 14px;border-radius:20px;font-size:12px;white-space:nowrap;cursor:pointer}.d.active{background:#0f0;color:#000;font-weight:900}
 .filters{display:flex;gap:8px;margin-top:12px;align-items:center}.f{border:1px solid #333;background:#111;color:#888;padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer}.f.active{background:#fff;color:#000;font-weight:900}
 .refresh{margin-left:auto;background:#111;border:1px solid #0f0;color:#0f0;padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer}
-.country{background:#0a0a0a;color:#0f0;padding:10px 12px;margin-top:12px;font-size:12px;border-left:3px solid #0f0}
+.country{background:#0a0a0a;color:#0f0;padding:10px 12px;margin-top:12px;font-size:12px;border-left:3px solid #0f0;display:flex;justify-content:space-between}
+.country.top{background:#0f0;color:#000;border-left-color:#fff;font-weight:900}
 .league{color:#666;padding:6px 12px;font-size:11px}
 .card{background:#111;border:1px solid #222;margin:6px 8px;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
 .card.live{border-left:3px solid #0f0;background:#0f0f0f}.card.ft{border-left:3px solid #444}
@@ -124,14 +159,17 @@ async function load(d, force){
 }
 function render(data){
   let filtered=data;
-  if(currentFilter==='live')filtered=data.filter(function(m){return m.elapsed!==''});
+  if(currentFilter==='live')filtered=data.filter(function(m){return m.elapsed!=='' && m.status!=='FT'});
   if(currentFilter==='ft')filtered=data.filter(function(m){return m.status==='FT'});
   if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No '+currentFilter+' matches</div>';return}
   let h='';let lc='';let ll='';
   for(let idx=0;idx<filtered.length;idx++){
     let m=filtered[idx];
-    if(m.country!==lc){h+='<div class="country">'+m.country+'</div>';lc=m.country;ll=''}
-    if(m.league!==ll){h+='<div class="league">'+m.league+'</div>';ll=m.league}
+    if(m.country!==lc || m.league!==ll){
+      let isTop=m.rank<100;
+      h+='<div class="country'+(isTop?' top':'')+'"><span>'+m.country+' - '+m.league+'</span><span>'+(isTop?'★':'' )+'</span></div>';
+      lc=m.country;ll=m.league;
+    }
     let cls=m.status==='FT'?'card ft':(m.elapsed!==''?'card live':'card');
     let timeClass=m.status==='NS'?'time ns':'time';
     let realIdx=allData.indexOf(m);
@@ -145,11 +183,10 @@ function openMatch(i){
   document.getElementById('mLeague').textContent=m.country+' - '+m.league;
   let s=m.score.split('-');
   document.getElementById('mTeams').innerHTML='<div class="teamRow"><span>'+m.home+'</span><b>'+s[0]+'</b></div><div class="teamRow"><span>'+m.away+'</span><b>'+s[1]+'</b></div>';
-  document.getElementById('mHT').textContent=m.ht||'0-0';
-  document.getElementById('mFT').textContent=m.ft||m.score;
-  document.getElementById('mST').textContent=m.longStatus||m.status;
-  let info=m.status==='NS'?'Kick-off: '+getTime(m.timestamp):(m.elapsed?m.elapsed+"' - "+(m.longStatus||m.status):(m.longStatus||m.status));
-  document.getElementById('mInfo').textContent=info;
+  document.getElementById('mHT').textContent=m.ht;
+  document.getElementById('mFT').textContent=m.ft;
+  document.getElementById('mST').textContent=m.longStatus;
+  document.getElementById('mInfo').textContent=m.longStatus;
   document.getElementById('modal').classList.add('show');
 }
 buildDates();load(fmtDate(selectedDate), true);
