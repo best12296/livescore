@@ -20,7 +20,7 @@ export default {
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||"2026-10-26"; 
       const force=url.searchParams.get("refresh")==="1";
-      const cacheKey=new Request("https://cache.local/v20-2025-2026-TABLE-"+date); 
+      const cacheKey=new Request("https://cache.local/v21-2026-2027-ALL-"+date); 
       const cache=caches.default;
       if(!force){ const cached=await cache.match(cacheKey); if(cached) return new Response(await cached.text(), { headers:{...cors,"Content-Type":"application/json"}}); }
       try{
@@ -29,7 +29,7 @@ export default {
         const data=[];
         for(const f of (j.response||[])){
           const league=f.league?.name||""; const country=f.league?.country||"WORLD"; const p=getPriority(league,country); const short=f.fixture?.status?.short||"NS";
-          data.push({ country:(p.displayCountry||country).toUpperCase(), league:league, leagueId:f.league?.id||0, season:f.league?.season||2025, timestamp:f.fixture?.timestamp, status:short, elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:(f.goals?.home??0)+"-"+(f.goals?.away??0), ht:(f.score?.halftime?.home??"-")+"-"+(f.score?.halftime?.away??"-"), ft:(f.score?.fulltime?.home??f.goals?.home??0)+"-"+(f.score?.fulltime?.away??f.goals?.away??0), longStatus:f.fixture?.status?.long||short, rank:p.rank });
+          data.push({ country:(p.displayCountry||country).toUpperCase(), league:league, leagueId:f.league?.id||0, season:2026, timestamp:f.fixture?.timestamp, status:short, elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:(f.goals?.home??0)+"-"+(f.goals?.away??0), ht:(f.score?.halftime?.home??"-")+"-"+(f.score?.halftime?.away??"-"), ft:(f.score?.fulltime?.home??f.goals?.home??0)+"-"+(f.score?.fulltime?.away??f.goals?.away??0), longStatus:f.fixture?.status?.long||short, rank:p.rank });
         }
         data.sort((a,b)=>{ if(a.rank!==b.rank) return a.rank-b.rank; return a.country.localeCompare(b.country); });
         const finalData={count:data.length,data:data};
@@ -41,11 +41,10 @@ export default {
     if(url.pathname==="/api/standings"){
       const league=url.searchParams.get("league"); 
       const cache=caches.default;
-      const cacheKey=new Request("https://cache.local/STAND-2025-2026-"+league);
+      const cacheKey=new Request("https://cache.local/STAND-2026-2027-"+league);
       const cached=await cache.match(cacheKey);
       if(cached) return new Response(await cached.text(), {headers:{...cors,"Content-Type":"application/json"}});
-      // 2025 = 2025/2026 season
-      const trySeasons=["2025","2024","2023"];
+      const trySeasons=["2026","2025","2024"];
       for(let s of trySeasons){
         try{
           const r=await fetch(`https://v3.football.api-sports.io/standings?league=${league}&season=${s}`, {headers:{"x-apisports-key":API_KEY}});
@@ -81,7 +80,7 @@ header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px
 <header><div class="top"><b>DIAMOND LIVESCORE</b></div><div class="dates" id="dates"></div><div class="filters"><div class="f active" id="f-all">All Games</div><div class="f" id="f-live">Live</div><div class="f" id="f-ft">Finished</div><div class="refresh" id="refreshBtn">Refresh</div></div></header>
 <div id="list">Loading...</div>
 <div id="modal"><div class="modal-box"><div class="modal-head"><b id="mLeague">Match</b><div class="close" onclick="document.getElementById('modal').classList.remove('show')">Close</div></div><div id="mTeams"></div><div class="resultGrid"><div class="rBox"><span>HALF TIME</span><b id="mHT">-</b></div><div class="rBox"><span>FULL TIME</span><b id="mFT">-</b></div><div class="rBox"><span>STATUS</span><b id="mST" style="font-size:11px">-</b></div></div></div></div>
-<div id="standModal"><div class="modal-box"><div class="modal-head"><b id="sLeague">2025/2026 Standings</b><div class="close" onclick="document.getElementById('standModal').classList.remove('show')">Close</div></div><div class="tableWrap" id="sTable">Loading...</div><div style="color:#555;font-size:10px;margin-top:12px;text-align:center">Scroll table left/right → to see all</div></div></div>
+<div id="standModal"><div class="modal-box"><div class="modal-head"><b id="sLeague">2026/2027 Standings</b><div class="close" onclick="document.getElementById('standModal').classList.remove('show')">Close</div></div><div class="tableWrap" id="sTable">Loading...</div><div style="color:#555;font-size:10px;margin-top:12px;text-align:center">Scroll left/right → to see all</div></div></div>
 <script>
 const list=document.getElementById('list');const datesEl=document.getElementById('dates');let selectedDate=new Date();let allData=[];let currentFilter='all';
 function fmtDate(d){return d.toISOString().slice(0,10)}function dayLabel(d,i){const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];if(i===0)return 'Today';return days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0');}
@@ -97,7 +96,7 @@ let h='';let lc='';let ll='';
 for(let idx=0;idx<filtered.length;idx++){
 let m=filtered[idx];
 if(m.country!==lc || m.league!==ll){
-h+='<div class="country" data-league="'+m.leagueId+'" data-season="2025" data-name="'+m.country+' - '+m.league+'"><span>'+m.country+' - '+m.league+'</span><span>TABLE 25/26 ▸</span></div>';
+h+='<div class="country" data-league="'+m.leagueId+'" data-season="2026" data-name="'+m.country+' - '+m.league+'"><span>'+m.country+' - '+m.league+'</span><span>TABLE 26/27 ▸</span></div>';
 lc=m.country;ll=m.league;
 }
 let cls=m.status==='FT'?'card ft':(m.elapsed!==''?'card live':'card');let realIdx=allData.indexOf(m);
@@ -105,18 +104,18 @@ h+='<div class="'+cls+'" data-i="'+realIdx+'"><div class="left"><div class="time
 }
 list.innerHTML=h;
 document.querySelectorAll('.card').forEach(function(el){el.onclick=function(){openMatch(parseInt(el.getAttribute('data-i')))}});
-document.querySelectorAll('.country').forEach(function(el){el.onclick=function(){openStanding(el.getAttribute('data-league'), '2025', el.getAttribute('data-name'))}});
+document.querySelectorAll('.country').forEach(function(el){el.onclick=function(){openStanding(el.getAttribute('data-league'), '2026', el.getAttribute('data-name'))}});
 }
 function openMatch(i){let m=allData[i];if(!m)return;document.getElementById('mLeague').textContent=m.country+' - '+m.league;let s=m.score.split('-');document.getElementById('mTeams').innerHTML='<div class="teamRow"><span>'+m.home+'</span><b>'+s[0]+'</b></div><div class="teamRow"><span>'+m.away+'</span><b>'+s[1]+'</b></div>';document.getElementById('mHT').textContent=m.ht;document.getElementById('mFT').textContent=m.ft;document.getElementById('mST').textContent=m.longStatus;document.getElementById('modal').classList.add('show');}
 async function openStanding(leagueId, season, name){
-document.getElementById('sLeague').textContent=name+' - 2025/2026 Standings';
-document.getElementById('sTable').innerHTML='Loading 2025/2026 table...';
+document.getElementById('sLeague').textContent=name+' - 2026/2027 Standings';
+document.getElementById('sTable').innerHTML='Loading 2026/2027 table...';
 document.getElementById('standModal').classList.add('show');
 try{
 let r=await fetch('/api/standings?league='+leagueId+'&season='+season);
 let j=await r.json();
 let standings=j.response?.[0]?.league?.standings?.[0];
-if(!standings){ document.getElementById('sTable').innerHTML='No 2025/26 table yet for this league. This is cup competition.'; return; }
+if(!standings){ document.getElementById('sTable').innerHTML='2026/27 table not yet available for this league. Will show 2025/26. Loading...'; let r2=await fetch('/api/standings?league='+leagueId+'&season=2025'); let j2=await r2.json(); standings=j2.response?.[0]?.league?.standings?.[0]; if(!standings){ document.getElementById('sTable').innerHTML='No table for this league (Cup competition)'; return; } }
 let html='<table><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th>Form</th></tr>';
 standings.forEach(s=>{
 let form=(s.form||'').slice(-5).split('').map(f=>'<span class="'+f+'">'+f+'</span>').join('');
