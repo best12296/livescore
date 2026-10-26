@@ -20,7 +20,7 @@ export default {
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||new Date().toISOString().slice(0,10); 
       const force=url.searchParams.get("refresh")==="1";
-      const cacheKey=new Request("https://cache.local/v13-NO-VS-NS-"+date); 
+      const cacheKey=new Request("https://cache.local/v14-3DAYS-ONLY-"+date); 
       const cache=caches.default;
       if(!force){ const cached=await cache.match(cacheKey); if(cached) return new Response(await cached.text(), { headers:{...cors,"Content-Type":"application/json"}}); }
       try{
@@ -62,7 +62,7 @@ header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px
 <script>
 const list=document.getElementById('list');const datesEl=document.getElementById('dates');let selectedDate=new Date();let allData=[];let currentFilter='all';
 function fmtDate(d){return d.toISOString().slice(0,10)}function dayLabel(d,i){const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];if(i===0)return 'Today';return days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0');}
-function buildDates(){datesEl.innerHTML='';for(let i=-2;i<=2;i++){let dt=new Date();dt.setDate(dt.getDate()+i);let btn=document.createElement('div');btn.className='d'+(i===0?' active':'');btn.textContent=dayLabel(dt,i);btn.onclick=function(){selectedDate=dt;document.querySelectorAll('.d').forEach(function(x){x.classList.remove('active')});btn.classList.add('active');load(fmtDate(dt),false);};datesEl.appendChild(btn);}}
+function buildDates(){datesEl.innerHTML='';for(let i=-1;i<=1;i++){let dt=new Date();dt.setDate(dt.getDate()+i);let btn=document.createElement('div');btn.className='d'+(i===0?' active':'');btn.textContent=dayLabel(dt,i);btn.onclick=function(){selectedDate=dt;document.querySelectorAll('.d').forEach(function(x){x.classList.remove('active')});btn.classList.add('active');load(fmtDate(dt),false);};datesEl.appendChild(btn);}}
 function getTime(ts){if(!ts)return '';let x=new Date(ts*1000);x.setHours(x.getHours()+1);return x.toISOString().slice(11,16);}
 function sc(m){ if(m.status==='NS') return ''; return '<div class="score">'+m.score+'</div><div class="ftbadge">'+m.status+'</div>'; }
 function setFilter(t){currentFilter=t;document.querySelectorAll('.f').forEach(function(x){x.classList.remove('active')});document.getElementById('f-'+t).classList.add('active');render(allData);}
