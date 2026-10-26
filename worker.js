@@ -4,7 +4,6 @@ export default {
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "*" };
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
     const API_KEY = "98a19520b228fd8dcff8459b07f0d569";
-
     function isYouth(league){ const x=league.toLowerCase(); return x.includes("u18")||x.includes("u19")||x.includes("u20")||x.includes("u21")||x.includes("u23")||x.includes("women")||x.includes("youth")||x.includes("reserve")||x.includes("academy"); }
     function getPriority(leagueName, countryName){
       const l=(leagueName||"").toLowerCase().trim(); const c=(countryName||"").toLowerCase().trim();
@@ -18,11 +17,10 @@ export default {
       if(l==="serie a" && c==="italy") return { rank:14, displayCountry:"ITALY" };
       return { rank:999, displayCountry:null };
     }
-
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||"2026-10-26"; 
       const force=url.searchParams.get("refresh")==="1";
-      const cacheKey=new Request("https://cache.local/v18-FULL-FINAL-"+date); 
+      const cacheKey=new Request("https://cache.local/v18-FINAL-"+date); 
       const cache=caches.default;
       if(!force){ const cached=await cache.match(cacheKey); if(cached) return new Response(await cached.text(), { headers:{...cors,"Content-Type":"application/json"}}); }
       try{
@@ -40,23 +38,31 @@ export default {
         return new Response(txt,{headers:{...cors,"Content-Type":"application/json"}});
       }catch(e){ return new Response(JSON.stringify({count:0,data:[]}), { headers:{...cors,"Content-Type":"application/json"}}); }
     }
-
     if(url.pathname==="/api/standings"){
       const league=url.searchParams.get("league"); 
       let season=url.searchParams.get("season")||"2026";
-      const trySeasons=[season,"2026","2025","2024"];
+      const cache=caches.default;
+      const cacheKey=new Request("https://cache.local/STAND-v2-"+league+"-"+season);
+      const cached=await cache.match(cacheKey);
+      if(cached) return new Response(await cached.text(), {headers:{...cors,"Content-Type":"application/json"}});
+      const trySeasons=[season,"2026","2025","2024","2023"];
       for(let s of trySeasons){
         try{
           const r=await fetch(`https://v3.football.api-sports.io/standings?league=${league}&season=${s}`, {headers:{"x-apisports-key":API_KEY}});
           const j=await r.json();
+          // If API says error, return error to show user
+          if(j.errors && Object.keys(j.errors).length>0){
+            return new Response(JSON.stringify({error: JSON.stringify(j.errors), seasonTried:s}), {headers:{...cors,"Content-Type":"application/json"}});
+          }
           if(j.response && j.response.length>0 && j.response[0].league && j.response[0].league.standings && j.response[0].league.standings[0] && j.response[0].league.standings[0].length>0){
-            return new Response(JSON.stringify(j), {headers:{...cors,"Content-Type":"application/json"}});
+            const txt=JSON.stringify(j);
+            ctx.waitUntil(cache.put(cacheKey,new Response(txt,{headers:{"Content-Type":"application/json","Cache-Control":"max-age=86400"}})));
+            return new Response(txt, {headers:{...cors,"Content-Type":"application/json"}});
           }
         }catch(e){}
       }
       return new Response(JSON.stringify({response:[]}), {headers:{...cors,"Content-Type":"application/json"}});
     }
-
     const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
 body{margin:0;background:#000;color:#fff;font-family:Arial;font-weight:700}
 header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px solid #0f0;z-index:99}
@@ -113,8 +119,9 @@ document.getElementById('standModal').classList.add('show');
 try{
 let r=await fetch('/api/standings?league='+leagueId+'&season='+season);
 let j=await r.json();
+if(j.error){ document.getElementById('sTable').innerHTML='<div style="color:#f00">API Error: '+j.error+'<br><br>Your 98 key has reached 100/day limit. Wait until midnight UTC or add 2nd key.</div>'; return; }
 let standings=j.response?.[0]?.league?.standings?.[0];
-if(!standings){ document.getElementById('sTable').innerHTML='No table: This is Cup competition (no league table).'; return; }
+if(!standings){ document.getElementById('sTable').innerHTML='<div>No standings found. Trying other seasons...<br>League ID: '+leagueId+'<br>Season tried: '+season+'</div>'; return; }
 let html='<table><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th>Form</th></tr>';
 standings.forEach(s=>{
 let form=(s.form||'').slice(-5).split('').map(f=>'<span class="'+f+'">'+f+'</span>').join('');
@@ -122,7 +129,7 @@ html+='<tr><td>'+s.rank+'</td><td>'+s.team.name+'</td><td>'+s.all.played+'</td><
 });
 html+='</table>';
 document.getElementById('sTable').innerHTML=html;
-}catch(e){ document.getElementById('sTable').innerHTML='Failed to load standings.'; }
+}catch(e){ document.getElementById('sTable').innerHTML='Failed to load standings: '+e.message; }
 }
 buildDates();load(fmtDate(selectedDate), false);
 </script></body></html>`;
