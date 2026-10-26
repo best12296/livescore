@@ -4,9 +4,14 @@ export default {
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "*" };
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
     const API_KEY = "98a19520b228fd8dcff8459b07f0d569";
+    function isCup(league){
+      const x=league.toLowerCase();
+      return x.includes("cup")||x.includes("copa")||x.includes("knockout")||x.includes("trophy")||x.includes("shield")||x.includes("super cup")||x.includes("dfb pokal")||x.includes("coupe")||x.includes("qualif")||x.includes("play-offs");
+    }
+    function isYouth(league){ const x=league.toLowerCase(); return x.includes("u18")||x.includes("u19")||x.includes("u20")||x.includes("u21")||x.includes("women")||x.includes("youth")||x.includes("reserve"); }
     function getPriority(leagueName, countryName){
-      const l=(leagueName||"").toLowerCase().trim(); const c=(countryName||"").toLowerCase().trim();
-      if(l.includes("u18")||l.includes("u19")||l.includes("u20")||l.includes("women")||l.includes("youth")) return { rank:999, displayCountry:null };
+      if(isCup(leagueName)||isYouth(leagueName)) return null;
+      const l=leagueName.toLowerCase().trim(); const c=countryName.toLowerCase().trim();
       if(l==="uefa champions league") return { rank:1, displayCountry:"EUROPE" };
       if(l==="uefa europa league") return { rank:2, displayCountry:"EUROPE" };
       if(l==="premier league" && c==="england") return { rank:10, displayCountry:"ENGLAND" };
@@ -14,20 +19,22 @@ export default {
       if(l==="ligue 1" && c==="france") return { rank:12, displayCountry:"FRANCE" };
       if(l==="bundesliga" && c==="germany") return { rank:13, displayCountry:"GERMANY" };
       if(l==="serie a" && c==="italy") return { rank:14, displayCountry:"ITALY" };
-      return { rank:999, displayCountry:null };
+      return { rank:50, displayCountry:countryName.toUpperCase() };
     }
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||"2026-10-26"; 
       const force=url.searchParams.get("refresh")==="1";
-      const cacheKey=new Request("https://cache.local/FINAL-2627-ALL-"+date); 
+      const cacheKey=new Request("https://cache.local/FINAL-NOCUP-2627-"+date); 
       const cache=caches.default;
       if(!force){ const cached=await cache.match(cacheKey); if(cached) return new Response(await cached.text(), { headers:{...cors,"Content-Type":"application/json"}}); }
       const apiRes=await fetch("https://v3.football.api-sports.io/fixtures?date="+date,{headers:{"x-apisports-key":API_KEY}});
       const j=await apiRes.json(); 
       const data=[];
       for(const f of (j.response||[])){
-        const league=f.league?.name||""; const country=f.league?.country||"WORLD"; const p=getPriority(league,country);
-        data.push({ country:(p.displayCountry||country).toUpperCase(), league:league, leagueId:f.league?.id||0, season:2026, timestamp:f.fixture?.timestamp, status:f.fixture?.status?.short||"NS", elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:(f.goals?.home??0)+"-"+(f.goals?.away??0), ht:(f.score?.halftime?.home??"-")+"-"+(f.score?.halftime?.away??"-"), ft:(f.score?.fulltime?.home??f.goals?.home??0)+"-"+(f.score?.fulltime?.away??f.goals?.away??0), longStatus:f.fixture?.status?.long||"NS", rank:p.rank });
+        const league=f.league?.name||""; const country=f.league?.country||"WORLD"; 
+        const p=getPriority(league,country);
+        if(!p) continue; // REMOVE CUPS
+        data.push({ country:p.displayCountry, league:league, leagueId:f.league?.id||0, season:2026, timestamp:f.fixture?.timestamp, status:f.fixture?.status?.short||"NS", elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:(f.goals?.home??0)+"-"+(f.goals?.away??0), ht:(f.score?.halftime?.home??"-")+"-"+(f.score?.halftime?.away??"-"), ft:(f.score?.fulltime?.home??f.goals?.home??0)+"-"+(f.score?.fulltime?.away??f.goals?.away??0), longStatus:f.fixture?.status?.long||"NS", rank:p.rank });
       }
       data.sort((a,b)=> a.rank-b.rank || a.country.localeCompare(b.country));
       const txt=JSON.stringify({count:data.length,data:data}); 
@@ -37,19 +44,26 @@ export default {
     if(url.pathname==="/api/standings"){
       const league=url.searchParams.get("league");
       const cache=caches.default;
-      const cacheKey=new Request("https://cache.local/FINAL-2627-STAND-"+league);
+      const cacheKey=new Request("https://cache.local/FINAL-TABLE-2627-FALLBACK-"+league);
       const cached=await cache.match(cacheKey);
       if(cached) return new Response(await cached.text(), {headers:{...cors,"Content-Type":"application/json"}});
-      const r=await fetch(`https://v3.football.api-sports.io/standings?league=${league}&season=2026`, {headers:{"x-apisports-key":API_KEY}});
-      const j=await r.json();
-      const txt=JSON.stringify(j);
-      if(j.response && j.response.length>0) ctx.waitUntil(cache.put(cacheKey,new Response(txt,{headers:{"Content-Type":"application/json","Cache-Control":"max-age=86400"}})));
-      return new Response(txt, {headers:{...cors,"Content-Type":"application/json"}});
+      const seasons=["2026","2025","2024"];
+      for(let s of seasons){
+        const r=await fetch(`https://v3.football.api-sports.io/standings?league=${league}&season=${s}`, {headers:{"x-apisports-key":API_KEY}});
+        const j=await r.json();
+        if(j.response && j.response.length>0 && j.response[0].league?.standings?.[0]?.length>0){
+          const txt=JSON.stringify(j);
+          ctx.waitUntil(cache.put(cacheKey,new Response(txt,{headers:{"Content-Type":"application/json","Cache-Control":"max-age=86400"}})));
+          return new Response(txt, {headers:{...cors,"Content-Type":"application/json"}});
+        }
+      }
+      return new Response(JSON.stringify({response:[]}), {headers:{...cors,"Content-Type":"application/json"}});
     }
     const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
 body{margin:0;background:#000;color:#fff;font-family:Arial;font-weight:700}
 header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px solid #0f0;z-index:99}
-.top b{color:#0f0;font-size:18px}.dates{display:flex;gap:8px;overflow-x:auto;margin-top:10px}.d{border:1px solid #333;background:#111;color:#888;padding:8px 14px;border-radius:20px;font-size:12px;white-space:nowrap;cursor:pointer}.d.active{background:#0f0;color:#000;font-weight:900}
+.top b{color:#0f0;font-size:18px}.dates{display:flex;gap:8px;overflow-x:auto;margin-top:10px}.dates::-webkit-scrollbar{display:none}
+.d{border:1px solid #333;background:#111;color:#888;padding:8px 14px;border-radius:20px;font-size:12px;white-space:nowrap;cursor:pointer}.d.active{background:#0f0;color:#000;font-weight:900}
 .filters{display:flex;gap:8px;margin-top:12px;align-items:center}.f{border:1px solid #333;background:#111;color:#888;padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer}.f.active{background:#fff;color:#000;font-weight:900}
 .refresh{margin-left:auto;background:#000;border:1px solid #0f0;color:#0f0;padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;font-weight:900}
 .country{background:#00ff00 !important;color:#000 !important;padding:11px 12px;margin-top:12px;font-size:13px;border-left:4px solid #fff !important;display:flex;justify-content:space-between;font-weight:900;cursor:pointer}
@@ -73,7 +87,7 @@ td:first-child{color:#0f0;font-weight:900}.pts{color:#0f0 !important;font-weight
 <header><div class="top"><b>DIAMOND LIVESCORE</b></div><div class="dates" id="dates"></div><div class="filters"><div class="f active" id="f-all">All Games</div><div class="f" id="f-live">Live</div><div class="f" id="f-ft">Finished</div><div class="refresh" id="refreshBtn">Refresh</div></div></header>
 <div id="list">Loading...</div>
 <div id="modal"><div class="modal-box"><div class="modal-head"><b id="mLeague">Match</b><div class="close" onclick="document.getElementById('modal').classList.remove('show')">Close</div></div><div id="mTeams"></div><div class="resultGrid"><div class="rBox"><span>HALF TIME</span><b id="mHT">-</b></div><div class="rBox"><span>FULL TIME</span><b id="mFT">-</b></div><div class="rBox"><span>STATUS</span><b id="mST" style="font-size:11px">-</b></div></div></div></div>
-<div id="standModal"><div class="modal-box"><div class="modal-head"><b id="sLeague">2026/2027 Standings</b><div class="close" onclick="document.getElementById('standModal').classList.remove('show')">Close</div></div><div class="tableWrap" id="sTable">Loading 2026/2027...</div><div style="color:#0f0;font-size:10px;margin-top:10px;text-align:center">← Team name sticks, scroll → to see GF GA GD Pts Form</div></div></div>
+<div id="standModal"><div class="modal-box"><div class="modal-head"><b id="sLeague">Standings</b><div class="close" onclick="document.getElementById('standModal').classList.remove('show')">Close</div></div><div class="tableWrap" id="sTable">Loading...</div><div style="color:#0f0;font-size:10px;margin-top:10px;text-align:center">← Team sticks, scroll → for GF GA GD Pts</div></div></div>
 <script>
 const list=document.getElementById('list');const datesEl=document.getElementById('dates');let selectedDate=new Date();let allData=[];let currentFilter='all';
 function fmtDate(d){return d.toISOString().slice(0,10)}function dayLabel(d,i){const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];if(i===0)return 'Today';return days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0');}
@@ -84,7 +98,7 @@ function setFilter(t){currentFilter=t;document.querySelectorAll('.f').forEach(x=
 document.getElementById('f-all').onclick=()=>setFilter('all');document.getElementById('f-live').onclick=()=>setFilter('live');document.getElementById('f-ft').onclick=()=>setFilter('ft');document.getElementById('refreshBtn').onclick=()=>load(fmtDate(selectedDate), true);
 async function load(d, force){if(!d)d=fmtDate(selectedDate);list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading '+d+'...</div>';let r=await fetch('/api/matches?date='+d+(force?'&refresh=1':''));let j=await r.json();allData=j.data||[];render(allData);}
 function render(data){
-let filtered=data;if(currentFilter==='live')filtered=data.filter(m=>m.elapsed!=='' && m.status!=='FT');if(currentFilter==='ft')filtered=data.filter(m=>m.status==='FT');if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No '+currentFilter+' matches</div>';return}
+let filtered=data;if(currentFilter==='live')filtered=data.filter(m=>m.elapsed!=='' && m.status!=='FT');if(currentFilter==='ft')filtered=data.filter(m=>m.status==='FT');if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No matches (cups removed)</div>';return}
 let h='';let lc='';let ll='';
 for(let m of filtered){
 if(m.country!==lc || m.league!==ll){
@@ -105,7 +119,7 @@ document.getElementById('standModal').classList.add('show');
 let r=await fetch('/api/standings?league='+leagueId+'&season='+season);
 let j=await r.json();
 let standings=j.response?.[0]?.league?.standings?.[0];
-if(!standings){document.getElementById('sTable').innerHTML='No 2026/27 table - cup competition';return;}
+if(!standings){document.getElementById('sTable').innerHTML='No table for this league';return;}
 let html='<table><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th>Form</th></tr>';
 standings.forEach(s=>{
 let form=(s.form||'').slice(-5).split('').map(f=>'<span class="'+f+'">'+f+'</span>').join('');
