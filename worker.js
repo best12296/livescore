@@ -3,10 +3,7 @@ export default {
     const url = new URL(request.url);
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "*" };
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
-    
-    // ONLY the 98 key
     const API_KEY = "98a19520b228fd8dcff8459b07f0d569";
-
     function isYouth(league){ const x=league.toLowerCase(); return x.includes("u18")||x.includes("u19")||x.includes("u20")||x.includes("u21")||x.includes("u23")||x.includes("women")||x.includes("youth")||x.includes("reserve")||x.includes("academy"); }
     function getPriority(leagueName, countryName){
       const l=(leagueName||"").toLowerCase().trim(); const c=(countryName||"").toLowerCase().trim();
@@ -18,41 +15,29 @@ export default {
       if(l==="ligue 1" && c==="france") return { rank:12, displayCountry:"FRANCE" };
       if(l==="bundesliga" && c==="germany") return { rank:13, displayCountry:"GERMANY" };
       if(l==="serie a" && c==="italy") return { rank:14, displayCountry:"ITALY" };
-      if(l==="eredivisie" && c==="netherlands") return { rank:15, displayCountry:"NETHERLANDS" };
-      if(l==="championship" && c==="england") return { rank:16, displayCountry:"ENGLAND" };
       return { rank:999, displayCountry:null };
     }
-
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||new Date().toISOString().slice(0,10); 
       const force=url.searchParams.get("refresh")==="1";
-      const cacheKey=new Request("https://cache.local/v12-ONLY-98-KEY-"+date); 
+      const cacheKey=new Request("https://cache.local/v13-NO-VS-NS-"+date); 
       const cache=caches.default;
       if(!force){ const cached=await cache.match(cacheKey); if(cached) return new Response(await cached.text(), { headers:{...cors,"Content-Type":"application/json"}}); }
-      
       try{
         const apiRes=await fetch("https://v3.football.api-sports.io/fixtures?date="+date,{headers:{"x-apisports-key":API_KEY}});
         const j=await apiRes.json(); 
-        if(j.errors && Object.keys(j.errors).length>0){
-          return new Response(JSON.stringify({count:0,data:[], error:JSON.stringify(j.errors)}), { headers:{...cors,"Content-Type":"application/json"}});
-        }
         const data=[];
         for(const f of (j.response||[])){
           const league=f.league?.name||""; const country=f.league?.country||"WORLD"; const p=getPriority(league,country); const short=f.fixture?.status?.short||"NS";
           data.push({ country:(p.displayCountry||country).toUpperCase(), league:league, timestamp:f.fixture?.timestamp, status:short, elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:(f.goals?.home??0)+"-"+(f.goals?.away??0), ht:(f.score?.halftime?.home??"-")+"-"+(f.score?.halftime?.away??"-"), ft:(f.score?.fulltime?.home??f.goals?.home??0)+"-"+(f.score?.fulltime?.away??f.goals?.away??0), longStatus:f.fixture?.status?.long||short, rank:p.rank });
         }
-        data.sort((a,b)=>{ if(a.rank!==b.rank) return a.rank-b.rank; if(a.country!==b.country) return a.country.localeCompare(b.country); return a.league.localeCompare(b.league); });
+        data.sort((a,b)=>{ if(a.rank!==b.rank) return a.rank-b.rank; return a.country.localeCompare(b.country); });
         const finalData={count:data.length,data:data};
         const txt=JSON.stringify(finalData); 
-        if(data.length>0){
-          ctx.waitUntil(cache.put(cacheKey,new Response(txt,{headers:{"Content-Type":"application/json","Cache-Control":"max-age=300"}})));
-        }
+        if(data.length>0) ctx.waitUntil(cache.put(cacheKey,new Response(txt,{headers:{"Content-Type":"application/json","Cache-Control":"max-age=300"}})));
         return new Response(txt,{headers:{...cors,"Content-Type":"application/json"}});
-      }catch(e){
-        return new Response(JSON.stringify({count:0,data:[], error:e.message}), { headers:{...cors,"Content-Type":"application/json"}});
-      }
+      }catch(e){ return new Response(JSON.stringify({count:0,data:[]}), { headers:{...cors,"Content-Type":"application/json"}}); }
     }
-
     const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
 body{margin:0;background:#000;color:#fff;font-family:Arial;font-weight:700}
 header{position:sticky;top:0;background:#000;padding:10px 12px;border-bottom:2px solid #0f0;z-index:99}
@@ -79,12 +64,12 @@ const list=document.getElementById('list');const datesEl=document.getElementById
 function fmtDate(d){return d.toISOString().slice(0,10)}function dayLabel(d,i){const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];if(i===0)return 'Today';return days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0');}
 function buildDates(){datesEl.innerHTML='';for(let i=-2;i<=2;i++){let dt=new Date();dt.setDate(dt.getDate()+i);let btn=document.createElement('div');btn.className='d'+(i===0?' active':'');btn.textContent=dayLabel(dt,i);btn.onclick=function(){selectedDate=dt;document.querySelectorAll('.d').forEach(function(x){x.classList.remove('active')});btn.classList.add('active');load(fmtDate(dt),false);};datesEl.appendChild(btn);}}
 function getTime(ts){if(!ts)return '';let x=new Date(ts*1000);x.setHours(x.getHours()+1);return x.toISOString().slice(11,16);}
-function sc(m){if(m.status==='NS')return '<div class="score">vs</div><div class="ftbadge">NS</div>';return '<div class="score">'+m.score+'</div><div class="ftbadge">'+m.status+'</div>';}
+function sc(m){ if(m.status==='NS') return ''; return '<div class="score">'+m.score+'</div><div class="ftbadge">'+m.status+'</div>'; }
 function setFilter(t){currentFilter=t;document.querySelectorAll('.f').forEach(function(x){x.classList.remove('active')});document.getElementById('f-'+t).classList.add('active');render(allData);}
 document.getElementById('f-all').onclick=function(){setFilter('all')};document.getElementById('f-live').onclick=function(){setFilter('live')};document.getElementById('f-ft').onclick=function(){setFilter('ft')};document.getElementById('refreshBtn').onclick=function(){load(fmtDate(selectedDate), true)};document.getElementById('closeBtn').onclick=function(){document.getElementById('modal').classList.remove('show')};document.getElementById('modal').onclick=function(e){if(e.target.id==='modal')e.currentTarget.classList.remove('show')};
 async function load(d, force){if(!d)d=fmtDate(selectedDate);list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading '+d+'...</div>';let url='/api/matches?date='+d+(force?'&refresh=1':'');let r=await fetch(url);let j=await r.json();allData=j.data||[];render(allData);}
 function render(data){
-let filtered=data;if(currentFilter==='live')filtered=data.filter(function(m){return m.elapsed!=='' && m.status!=='FT'});if(currentFilter==='ft')filtered=data.filter(function(m){return m.status==='FT'});if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No '+currentFilter+' matches for this date. Try other date or press Refresh.</div>';return}
+let filtered=data;if(currentFilter==='live')filtered=data.filter(function(m){return m.elapsed!=='' && m.status!=='FT'});if(currentFilter==='ft')filtered=data.filter(function(m){return m.status==='FT'});if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No '+currentFilter+' matches for this date.</div>';return}
 let h='';let lc='';let ll='';
 for(let idx=0;idx<filtered.length;idx++){
 let m=filtered[idx];
