@@ -12,7 +12,7 @@ export default {
 
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||TODAY;
-      const cacheKey=new Request("https://cache.local/LOGOFIX-"+date);
+      const cacheKey=new Request("https://cache.local/HTFT-NS-"+date);
       const cache=caches.default; const cached=await cache.match(cacheKey);
       if(cached && url.searchParams.get("refresh")!=="1") return new Response(await cached.text(), {headers:{...cors,"Content-Type":"application/json"}});
       const apiRes=await fetch("https://v3.football.api-sports.io/fixtures?date="+date,{headers:{"x-apisports-key":API_KEY}});
@@ -31,7 +31,7 @@ export default {
     const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
 body{margin:0;background:#000;color:#fff;font-family:Arial;font-weight:700}
 .top-banner{background:linear-gradient(90deg,#1a5cff,#00d800);color:#fff;text-align:center;padding:8px 12px;position:sticky;top:0;z-index:100;display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap}
-.xlogo{background:#fff;color:#0046ff;padding:2px 8px;border-radius:4px;font-weight:900;font-style:italic;letter-spacing:-0.5px;font-size:14px;border:2px solid #fff}
+.xlogo{background:#fff;color:#0046ff;padding:2px 8px;border-radius:4px;font-weight:900;font-style:italic;letter-spacing:-0.5px;font-size:14px}
 .top-banner a{background:#fff;color:#000;padding:6px 14px;border-radius:20px;text-decoration:none;font-weight:900;font-size:13px;display:flex;align-items:center;gap:6px}
 .promo-click{background:#fff;color:#000;padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:900;border:2px dashed #1a5cff}
 header{position:sticky;top:44px;background:#000;padding:10px 12px;border-bottom:2px solid #0f0;z-index:99}
@@ -45,7 +45,7 @@ header{position:sticky;top:44px;background:#000;padding:10px 12px;border-bottom:
 .card{background:#111;border:1px solid #222;margin:6px 8px;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
 .left{display:flex;gap:10px;align-items:center}.time{min-width:55px;text-align:center;background:#000 !important;border:1px solid #0f0 !important;padding:5px 8px;border-radius:20px;font-weight:900;font-size:12px}
 .teams{line-height:20px;font-size:14px}.mid{text-align:right;min-width:70px}.score{font-size:18px;font-weight:900}.ftbadge{color:#fff;background:#333;padding:2px 8px;border-radius:10px;font-size:11px}
-#resultModal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:999;display:none;justify-content:center;align-items:center;padding:20px}
+#resultModal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);z-index:999;display:none;justify-content:center;align-items:center;padding:20px}
 .box{background:#111;border:2px solid #0f0;border-radius:12px;padding:20px;width:100%;max-width:380px;text-align:center}
 .betbtn{display:flex;justify-content:center;align-items:center;gap:8px;margin:12px 0;background:#1a5cff;color:#fff;text-align:center;padding:12px;border-radius:8px;text-decoration:none;font-weight:900}
 .close{margin-top:10px;background:#222;color:#fff;padding:8px 20px;border-radius:20px;display:inline-block;cursor:pointer}
@@ -54,7 +54,7 @@ header{position:sticky;top:44px;background:#000;padding:10px 12px;border-bottom:
 <header><div class="top"><b>DIAMOND LIVESCORE</b></div><div class="dates" id="dates"></div><div class="filters"><div class="f active" onclick="filterGames('all',this)">All Games</div><div class="f" onclick="filterGames('live',this)">🔴 LIVE</div><div class="f" onclick="filterGames('finished',this)">Finished</div><div class="refresh" id="refreshBtn">Refresh</div></div></header>
 <div id="list">Loading...</div>
 
-<div id="resultModal" onclick="if(event.target.id==='resultModal') closeModal()"><div class="box"><span class="xlogo" style="font-size:20px;padding:6px 14px">1XBET</span><div id="modalTitle" style="font-size:18px;margin:12px 0">Match Result</div><div id="modalContent" style="background:#000;padding:12px;border-radius:8px;margin:10px 0"></div><a href="javascript:void(0)" onclick="copyPromo()" class="betbtn"><span class="xlogo">1XBET</span> BET NOW - ${PROMO_CODE} - 300% BONUS</a><div class="close" onclick="closeModal()">X Close</div></div></div>
+<div id="resultModal" onclick="if(event.target.id==='resultModal') closeModal()"><div class="box"><span class="xlogo" style="font-size:22px;padding:6px 14px">1XBET</span><div id="modalTitle" style="font-size:18px;margin:12px 0">Match Result</div><div id="modalContent" style="background:#000;padding:14px;border-radius:8px;margin:10px 0;line-height:22px"></div><a href="javascript:void(0)" onclick="copyPromo()" class="betbtn"><span class="xlogo">1XBET</span> BET NOW - ${PROMO_CODE} - 300% BONUS</a><div class="close" onclick="closeModal()">X Close</div></div></div>
 
 <script>
 const PROMO='${PROMO_CODE}'; const LINK='${PARTNER_LINK}';
@@ -72,7 +72,42 @@ async function load(d,force){if(!d)d=fmtDate(selectedDate);list.innerHTML='<div 
 function filterGames(type,el){ currentFilter=type; document.querySelectorAll('.f').forEach(x=>x.classList.remove('active')); el.classList.add('active'); applyFilter(); }
 function applyFilter(){ let data=allData; if(currentFilter==='live') data=allData.filter(m=>isLive(m.status)); if(currentFilter==='finished') data=allData.filter(m=>isFinished(m.status)); render(data); }
 function render(data){ if(!data.length){ let msg = currentFilter==='live' ? 'No LIVE games' : currentFilter==='finished' ? 'No finished games' : 'No games'; list.innerHTML='<div style="text-align:center;padding:40px;color:#666">'+msg+'</div>';return} let h=''; let lastKey=''; for(let m of data){ let key=m.country+' - '+m.league; if(key!==lastKey){ h+='<div class="country"><span>'+key+'</span></div>'; lastKey=key; } h+='<div class="card" onclick="openResult('+m.id+')"><div class="left"><div class="time">'+getTime(m)+'</div><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div></div><div class="mid">'+sc(m)+'</div></div>'; } list.innerHTML=h; }
-function openResult(id){ let m = allData.find(x=>x.id===id); if(!m) return; if(m.status==='NS' || m.status==='TBD' || m.status==='PST' || m.status==='CANC'){ copyPromo(); return; } let title = m.home+' vs '+m.away; let content=''; if(isFinished(m.status)){ content='<div>FT: <b style="color:#0f0;font-size:22px">'+m.score+'</b></div>'; if(m.htScore && m.htScore!==''){ content+='<div style="margin-top:8px;color:#888">HT: <b style="color:#fff">'+m.htScore+'</b></div>'; } } else if(isLive(m.status)){ content='<div>Live: <b style="color:red;font-size:22px">'+m.score+'</b> ('+(m.elapsed||'')+"' )</div><div style='margin-top:8px'>HT: '+(m.htScore||'-')+'</div>"; } else { content='<div>FT: '+m.score+'</div>'; } document.getElementById('modalTitle').textContent=title; document.getElementById('modalContent').innerHTML=content; document.getElementById('resultModal').style.display='flex'; }
+
+function openResult(id){
+  let m = allData.find(x=>x.id===id);
+  if(!m) return;
+  let title = m.home+' vs '+m.away;
+  let content = '';
+
+  // CASE 1: MATCH NEVER STARTED (Sassuolo vs Lazio)
+  if(m.status==='NS' || m.status==='TBD' || m.status==='PST' || m.status==='CANC' || m.status==='ABD'){
+    content = '<div style="color:#0f0;font-size:15px">⏳ Match Not Started Yet</div><div style="margin-top:12px;text-align:left;background:#000;padding:10px;border-radius:6px">'
+                        + '<div>HT: <b style="color:#888">Not Started</b></div>'
+                        + '<div style="margin-top:6px">FT: <b style="color:#888">Not Started</b></div>'
+                        + '<div style="margin-top:6px">Kickoff: <b style="color:#fff">'+getTime(m)+'</b></div>'
+                        + '</div><div style="margin-top:12px;color:#888;font-size:12px">Place your bet before kickoff with code '+PROMO+'</div>';
+  }
+  // CASE 2: FINISHED
+  else if(isFinished(m.status)){
+    content = '<div style="font-size:14px">FT Result: <b style="color:#0f0;font-size:24px">'+m.score+'</b></div>'
+                        + '<div style="margin-top:10px;text-align:left;background:#000;padding:10px;border-radius:6px">'
+                        + '<div>HT: <b style="color:#fff">'+(m.htScore && m.htScore!=='' ? m.htScore : ' - ')+'</b></div>'
+                        + '<div style="margin-top:6px">FT: <b style="color:#fff">'+m.score+'</b></div>'
+                        + '</div>';
+  }
+  // CASE 3: LIVE
+  else {
+    content = '<div style="font-size:14px">Live: <b style="color:red;font-size:24px">'+m.score+'</b> ('+(m.elapsed||'')+"')</div>"
+                        + '<div style="margin-top:10px;text-align:left;background:#000;padding:10px;border-radius:6px">'
+                        + '<div>HT: <b style="color:#fff">'+(m.htScore||'In Progress')+'</b></div>'
+                        + '<div style="margin-top:6px">FT: <b style="color:#0f0">Live...</b></div>'
+                        + '</div>';
+  }
+
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalContent').innerHTML=content;
+  document.getElementById('resultModal').style.display='flex';
+}
 function closeModal(){ document.getElementById('resultModal').style.display='none'; }
 buildDates();load(fmtDate(selectedDate),false);
 <\/script></body></html>`;
