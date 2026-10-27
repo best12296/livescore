@@ -27,7 +27,7 @@ export default {
     }
 
     async function getStanding(leagueId){
-      const seasons = [2025, 2024, 2026];
+      const seasons = [2026, 2025, 2024];
       for(let yr of seasons){
         let s = await fetch(`https://v3.football.api-sports.io/standings?league=${leagueId}&season=${yr}`,{headers:{"x-apisports-key":API_KEY}}).then(r=>r.json()).catch(()=>({response:[]}));
         if(s.response && s.response.length && s.response[0]?.league?.standings?.[0]?.length){
@@ -56,7 +56,6 @@ body{margin:0;background:#000;color:#fff;font-family:Arial;font-weight:700}
 .top-banner{background:linear-gradient(90deg,#1a5cff,#00ff00);color:#fff;text-align:center;padding:10px 12px;position:sticky;top:0;z-index:100;display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap}
 .top-banner a{background:#fff;color:#000;padding:6px 18px;border-radius:20px;text-decoration:none;font-weight:900;font-size:13px}
 .promo-click{background:#fff;color:#000;padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:900;border:2px dashed #1a5cff}
-.promo-click:active{transform:scale(0.95)}
 header{position:sticky;top:44px;background:#000;padding:10px 12px;border-bottom:2px solid #0f0;z-index:99}
 .top b{color:#0f0;font-size:18px}
 .dates{display:flex;gap:8px;overflow-x:auto;margin-top:10px}.dates::-webkit-scrollbar{display:none}
@@ -91,7 +90,7 @@ async function load(d,force){if(!d)d=fmtDate(selectedDate);list.innerHTML='<div 
 function render(data){ if(!data.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No games</div>';return} let h=''; let lastKey=''; for(let m of data){ let key=m.country+' - '+m.league; if(key!==lastKey){ h+='<div class="country"><span>'+key+'</span></div>'; lastKey=key; } h+='<div class="card" onclick="openDetail('+m.id+','+m.leagueId+','+m.homeId+','+m.awayId+',\\''+m.home.replace(/'/g,"")+' vs '+m.away.replace(/'/g,"")+'\\')"><div class="left"><div class="time">'+getTime(m)+'</div><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div></div><div class="mid">'+sc(m)+'</div></div>'; } list.innerHTML=h; }
 async function openDetail(id,leagueId,homeId,awayId,title){ document.getElementById('detail').style.display='block'; document.getElementById('detailTitle').textContent=title; document.getElementById('tabContent').innerHTML='Loading 2026/27 data...'; let r=await fetch('/api/detail?id='+id+'&league='+leagueId+'&homeId='+homeId+'&awayId='+awayId); detailCache=await r.json(); showTab('standing'); }
 function showTab(t){ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); let map={'standing':0,'h2h':1,'lineup':2,'stats':3}; document.querySelectorAll('.tab')[map[t]].classList.add('active'); let c=document.getElementById('tabContent'); if(!detailCache){c.innerHTML='No data';return}
- if(t==='standing'){ let st=detailCache.standing[0]?.league?.standings?.[0]||[]; if(!st.length){c.innerHTML='2026/27 Table coming soon'; return} let h='<div class="row" style="background:#111"><span># Team</span><span>Pts</span></div>'; st.forEach(s=>{ h+='<div class="row"><span>'+s.rank+'. '+s.team.name+'</span><span>'+s.points+' pts ('+s.all.played+'P)</span></div>'; }); c.innerHTML=h; }
+ if(t==='standing'){ let st=detailCache.standing[0]?.league?.standings?.[0]||[]; if(!st.length){c.innerHTML='Table not ready yet - Season starts soon'; return} let h='<div class="row" style="background:#111;font-size:11px"><span># Team</span><span>MP W D L PTS</span></div>'; st.forEach(s=>{ h+='<div class="row" style="font-size:12px"><span>'+s.rank+'. '+s.team.name+'</span><span>'+s.all.played+' '+s.all.win+' '+s.all.draw+' '+s.all.lose+' &nbsp; '+s.points+'</span></div>'; }); c.innerHTML=h; }
  if(t==='h2h'){ let h2=detailCache.h2h||[]; if(!h2.length){c.innerHTML='No H2H yet';return} let h=''; h2.forEach(f=>{ h+='<div class="row"><span>'+f.teams.home.name+' '+f.goals.home+'-'+f.goals.away+' '+f.teams.away.name+'</span><span>'+f.fixture.date.slice(0,10)+'</span></div>'; }); c.innerHTML=h; }
  if(t==='lineup'){ let lp=detailCache.lineup||[]; if(!lp.length){c.innerHTML='Lineup not announced yet';return} let h=''; lp.forEach(l=>{ h+='<div style="padding:10px;background:#111;margin:6px;border-radius:8px"><b>'+l.team.name+' ('+l.formation+')</b><br><span style="font-size:12px;color:#888">'+l.startXI.map(p=>p.player.name).join(', ')+'</span></div>'; }); c.innerHTML=h; }
  if(t==='stats'){ let st=detailCache.stats||[]; if(!st.length){c.innerHTML='Stats available only during/after match';return} let h=''; st.forEach(s=>{ h+='<div style="padding:8px;background:#111;margin:8px;border-radius:8px"><b>'+s.team.name+'</b><br>'+s.statistics.map(x=>'<div class="row"><span>'+x.type+'</span><span>'+x.value+'</span></div>').join('')+'</div>'; }); c.innerHTML=h; }
