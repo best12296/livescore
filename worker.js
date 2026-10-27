@@ -12,7 +12,7 @@ export default {
 
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||TODAY;
-      const cacheKey=new Request("https://cache.local/TOP9-AZ-2027-"+date);
+      const cacheKey=new Request("https://cache.local/TOP9-2027-GOOGLE-"+date);
       const cache=caches.default; const cached=await cache.match(cacheKey);
       if(cached && url.searchParams.get("refresh")!=="1") return new Response(await cached.text(), {headers:{...cors,"Content-Type":"application/json"}});
       const apiRes=await fetch("https://v3.football.api-sports.io/fixtures?date="+date,{headers:{"x-apisports-key":API_KEY}});
@@ -27,14 +27,20 @@ export default {
     }
 
     async function getStanding(leagueId){
-      const seasons = [2026, 2025, 2024];
+      // FIX: Google & Flashscore use season=2025 for 2026/27 live table (8 MP)
+      const seasons = [2025, 2026, 2024]; 
+      let backup = null;
       for(let yr of seasons){
         let s = await fetch(`https://v3.football.api-sports.io/standings?league=${leagueId}&season=${yr}`,{headers:{"x-apisports-key":API_KEY}}).then(r=>r.json()).catch(()=>({response:[]}));
         if(s.response && s.response.length && s.response[0]?.league?.standings?.[0]?.length){
-          return s;
+          let mp = s.response[0].league.standings[0][0]?.all?.played || 99;
+          if(mp <= 15){
+            return s; // LIVE - Man City 8 MP, PSG 8 MP like Google screenshot
+          }
+          if(!backup) backup = s;
         }
       }
-      return {response:[]};
+      return backup || {response:[]};
     }
 
     if(url.pathname==="/api/detail"){
@@ -51,7 +57,7 @@ export default {
       return new Response(JSON.stringify({standing:standRes.response||[], h2h:h2hRes.response||[], lineup:lineRes.response||[], stats:statRes.response||[]}),{headers:{...cors,"Content-Type":"application/json"}});
     }
 
-    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE 2027</title><style>
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE 2026/27</title><style>
 body{margin:0;background:#000;color:#fff;font-family:Arial;font-weight:700}
 .top-banner{background:linear-gradient(90deg,#1a5cff,#00ff00);color:#fff;text-align:center;padding:10px 12px;position:sticky;top:0;z-index:100;display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap}
 .top-banner a{background:#fff;color:#000;padding:6px 18px;border-radius:20px;text-decoration:none;font-weight:900;font-size:13px}
@@ -72,10 +78,10 @@ header{position:sticky;top:44px;background:#000;padding:10px 12px;border-bottom:
 .table{padding:10px}.row{display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #222;font-size:13px}
 .betbtn{display:block;margin:12px;background:#1a5cff;color:#fff;text-align:center;padding:12px;border-radius:8px;text-decoration:none;font-weight:900}
 </style></head><body>
-<div class="top-banner">🔥 2027 BONUS: <span class="promo-click" onclick="copyPromo()">${PROMO_CODE} (Tap to Copy)</span> <a href="${PARTNER_LINK}" target="_blank">BET NOW</a></div>
-<header><div class="top"><b>DIAMOND LIVESCORE 2027</b></div><div class="dates" id="dates"></div><div class="filters"><div class="f active">All Games</div><div class="refresh" id="refreshBtn">Refresh</div></div></header>
+<div class="top-banner">🔥 2026/27 BONUS: <span class="promo-click" onclick="copyPromo()">${PROMO_CODE} (Tap to Copy)</span> <a href="${PARTNER_LINK}" target="_blank">BET NOW</a></div>
+<header><div class="top"><b>DIAMOND LIVESCORE 2026/27</b></div><div class="dates" id="dates"></div><div class="filters"><div class="f active">All Games</div><div class="refresh" id="refreshBtn">Refresh</div></div></header>
 <div id="list">Loading...</div>
-<div id="detail"><div style="padding:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0f0"><b id="detailTitle">Match</b><span onclick="document.getElementById('detail').style.display='none'" style="background:#222;padding:6px 12px;border-radius:20px;cursor:pointer">X Close</span></div><a href="javascript:void(0)" onclick="copyPromo()" class="betbtn">🔥 BET NOW - CODE: ${PROMO_CODE} - TAP TO COPY & BET - 300% BONUS</a><div class="tabbar"><div class="tab active" onclick="showTab('standing')">2027 Standing</div><div class="tab" onclick="showTab('h2h')">H2H</div><div class="tab" onclick="showTab('lineup')">Lineup</div><div class="tab" onclick="showTab('stats')">Stats</div></div><div id="tabContent" class="table">Loading...</div></div>
+<div id="detail"><div style="padding:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0f0"><b id="detailTitle">Match</b><span onclick="document.getElementById('detail').style.display='none'" style="background:#222;padding:6px 12px;border-radius:20px;cursor:pointer">X Close</span></div><a href="javascript:void(0)" onclick="copyPromo()" class="betbtn">🔥 BET NOW - CODE: ${PROMO_CODE} - TAP TO COPY & BET - 300% BONUS</a><div class="tabbar"><div class="tab active" onclick="showTab('standing')">2026/27 Standing</div><div class="tab" onclick="showTab('h2h')">H2H</div><div class="tab" onclick="showTab('lineup')">Lineup</div><div class="tab" onclick="showTab('stats')">Stats</div></div><div id="tabContent" class="table">Loading...</div></div>
 <script>
 const PROMO='${PROMO_CODE}'; const LINK='${PARTNER_LINK}';
 function copyPromo(){ navigator.clipboard.writeText(PROMO).then(()=>{ alert('Code copied: '+PROMO+' - Opening 1xBet'); window.open(LINK,'_blank'); }).catch(()=>{ window.open(LINK,'_blank'); }); }
@@ -88,9 +94,9 @@ function sc(m){ if(m.status==='NS') return ''; if(m.status==='1H'||m.status==='2
 document.getElementById('refreshBtn').onclick=()=>load(fmtDate(selectedDate),true);
 async function load(d,force){if(!d)d=fmtDate(selectedDate);list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading...</div>';let r=await fetch('/api/matches?date='+d+(force?'&refresh=1':''));let j=await r.json();allData=j.data||[];render(allData);}
 function render(data){ if(!data.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No games</div>';return} let h=''; let lastKey=''; for(let m of data){ let key=m.country+' - '+m.league; if(key!==lastKey){ h+='<div class="country"><span>'+key+'</span></div>'; lastKey=key; } h+='<div class="card" onclick="openDetail('+m.id+','+m.leagueId+','+m.homeId+','+m.awayId+',\\''+m.home.replace(/'/g,"")+' vs '+m.away.replace(/'/g,"")+'\\')"><div class="left"><div class="time">'+getTime(m)+'</div><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div></div><div class="mid">'+sc(m)+'</div></div>'; } list.innerHTML=h; }
-async function openDetail(id,leagueId,homeId,awayId,title){ document.getElementById('detail').style.display='block'; document.getElementById('detailTitle').textContent=title; document.getElementById('tabContent').innerHTML='Loading 2027 data...'; let r=await fetch('/api/detail?id='+id+'&league='+leagueId+'&homeId='+homeId+'&awayId='+awayId); detailCache=await r.json(); showTab('standing'); }
+async function openDetail(id,leagueId,homeId,awayId,title){ document.getElementById('detail').style.display='block'; document.getElementById('detailTitle').textContent=title; document.getElementById('tabContent').innerHTML='Loading 2026/27 data...'; let r=await fetch('/api/detail?id='+id+'&league='+leagueId+'&homeId='+homeId+'&awayId='+awayId); detailCache=await r.json(); showTab('standing'); }
 function showTab(t){ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); let map={'standing':0,'h2h':1,'lineup':2,'stats':3}; document.querySelectorAll('.tab')[map[t]].classList.add('active'); let c=document.getElementById('tabContent'); if(!detailCache){c.innerHTML='No data';return}
- if(t==='standing'){ let st=detailCache.standing[0]?.league?.standings?.[0]||[]; if(!st.length){c.innerHTML='Table not ready yet - Season starts soon'; return} let h='<div class="row" style="background:#111;font-size:11px"><span># Team</span><span>MP W D L PTS</span></div>'; st.forEach(s=>{ h+='<div class="row" style="font-size:12px"><span>'+s.rank+'. '+s.team.name+'</span><span>'+s.all.played+' '+s.all.win+' '+s.all.draw+' '+s.all.lose+' &nbsp; '+s.points+'</span></div>'; }); c.innerHTML=h; }
+ if(t==='standing'){ let st=detailCache.standing[0]?.league?.standings?.[0]||[]; if(!st.length){c.innerHTML='Table not ready yet'; return} let h='<div class="row" style="background:#111;font-size:11px"><span># Team</span><span>MP W D L PTS</span></div>'; st.forEach(s=>{ h+='<div class="row" style="font-size:12px"><span>'+s.rank+'. '+s.team.name+'</span><span>'+s.all.played+' '+s.all.win+' '+s.all.draw+' '+s.all.lose+' &nbsp; '+s.points+'</span></div>'; }); c.innerHTML=h; }
  if(t==='h2h'){ let h2=detailCache.h2h||[]; if(!h2.length){c.innerHTML='No H2H yet';return} let h=''; h2.forEach(f=>{ h+='<div class="row"><span>'+f.teams.home.name+' '+f.goals.home+'-'+f.goals.away+' '+f.teams.away.name+'</span><span>'+f.fixture.date.slice(0,10)+'</span></div>'; }); c.innerHTML=h; }
  if(t==='lineup'){ let lp=detailCache.lineup||[]; if(!lp.length){c.innerHTML='Lineup not announced yet';return} let h=''; lp.forEach(l=>{ h+='<div style="padding:10px;background:#111;margin:6px;border-radius:8px"><b>'+l.team.name+' ('+l.formation+')</b><br><span style="font-size:12px;color:#888">'+l.startXI.map(p=>p.player.name).join(', ')+'</span></div>'; }); c.innerHTML=h; }
  if(t==='stats'){ let st=detailCache.stats||[]; if(!st.length){c.innerHTML='Stats available only during/after match';return} let h=''; st.forEach(s=>{ h+='<div style="padding:8px;background:#111;margin:8px;border-radius:8px"><b>'+s.team.name+'</b><br>'+s.statistics.map(x=>'<div class="row"><span>'+x.type+'</span><span>'+x.value+'</span></div>').join('')+'</div>'; }); c.innerHTML=h; }
