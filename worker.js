@@ -12,7 +12,7 @@ export default {
 
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||TODAY;
-      const cacheKey=new Request("https://cache.local/TOP9-2027-GOOGLE-"+date);
+      const cacheKey=new Request("https://cache.local/TOP9-FILTERS-"+date);
       const cache=caches.default; const cached=await cache.match(cacheKey);
       if(cached && url.searchParams.get("refresh")!=="1") return new Response(await cached.text(), {headers:{...cors,"Content-Type":"application/json"}});
       const apiRes=await fetch("https://v3.football.api-sports.io/fixtures?date="+date,{headers:{"x-apisports-key":API_KEY}});
@@ -27,20 +27,14 @@ export default {
     }
 
     async function getStanding(leagueId){
-      // FIX: Google & Flashscore use season=2025 for 2026/27 live table (8 MP)
-      const seasons = [2025, 2026, 2024]; 
-      let backup = null;
-      for(let yr of seasons){
-        let s = await fetch(`https://v3.football.api-sports.io/standings?league=${leagueId}&season=${yr}`,{headers:{"x-apisports-key":API_KEY}}).then(r=>r.json()).catch(()=>({response:[]}));
-        if(s.response && s.response.length && s.response[0]?.league?.standings?.[0]?.length){
-          let mp = s.response[0].league.standings[0][0]?.all?.played || 99;
-          if(mp <= 15){
-            return s; // LIVE - Man City 8 MP, PSG 8 MP like Google screenshot
-          }
-          if(!backup) backup = s;
-        }
+      const years = [2026, 2025, 2024, 2023];
+      for(let yr of years){
+        try{
+          let s = await fetch(`https://v3.football.api-sports.io/standings?league=${leagueId}&season=${yr}`,{headers:{"x-apisports-key":API_KEY}}).then(r=>r.json());
+          if(s.response && s.response.length && s.response[0]?.league?.standings?.[0]?.length) return s;
+        }catch(e){}
       }
-      return backup || {response:[]};
+      return {response:[]};
     }
 
     if(url.pathname==="/api/detail"){
@@ -66,8 +60,9 @@ header{position:sticky;top:44px;background:#000;padding:10px 12px;border-bottom:
 .top b{color:#0f0;font-size:18px}
 .dates{display:flex;gap:8px;overflow-x:auto;margin-top:10px}.dates::-webkit-scrollbar{display:none}
 .d{border:1px solid #333;background:#111;color:#888;padding:8px 14px;border-radius:20px;font-size:12px;white-space:nowrap;cursor:pointer}.d.active{background:#0f0;color:#000;font-weight:900}
-.filters{display:flex;gap:8px;margin-top:12px;align-items:center}.f{border:1px solid #333;background:#111;color:#888;padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer}.f.active{background:#fff;color:#000;font-weight:900}
-.refresh{margin-left:auto;background:#000;border:1px solid #0f0;color:#0f0;padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;font-weight:900}
+.filters{display:flex;gap:8px;margin-top:12px;align-items:center;overflow:auto}.filters::-webkit-scrollbar{display:none}
+.f{border:1px solid #333;background:#111;color:#888;padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;white-space:nowrap}.f.active{background:#fff;color:#000;font-weight:900}
+.refresh{margin-left:auto;background:#000;border:1px solid #0f0;color:#0f0;padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;font-weight:900;white-space:nowrap}
 .country{background:#00ff00 !important;color:#000 !important;padding:11px 12px;margin-top:12px;font-size:13px;border-left:4px solid #fff !important}
 .card{background:#111;border:1px solid #222;margin:6px 8px;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
 .left{display:flex;gap:10px;align-items:center}.time{min-width:55px;text-align:center;background:#000 !important;border:1px solid #0f0 !important;padding:5px 8px;border-radius:20px;font-weight:900;font-size:12px}
@@ -79,24 +74,28 @@ header{position:sticky;top:44px;background:#000;padding:10px 12px;border-bottom:
 .betbtn{display:block;margin:12px;background:#1a5cff;color:#fff;text-align:center;padding:12px;border-radius:8px;text-decoration:none;font-weight:900}
 </style></head><body>
 <div class="top-banner">🔥 2026/27 BONUS: <span class="promo-click" onclick="copyPromo()">${PROMO_CODE} (Tap to Copy)</span> <a href="${PARTNER_LINK}" target="_blank">BET NOW</a></div>
-<header><div class="top"><b>DIAMOND LIVESCORE 2026/27</b></div><div class="dates" id="dates"></div><div class="filters"><div class="f active">All Games</div><div class="refresh" id="refreshBtn">Refresh</div></div></header>
+<header><div class="top"><b>DIAMOND LIVESCORE 2026/27</b></div><div class="dates" id="dates"></div><div class="filters"><div class="f active" data-filter="all" onclick="filterGames('all',this)">All Games</div><div class="f" data-filter="live" onclick="filterGames('live',this)">🔴 LIVE</div><div class="f" data-filter="finished" onclick="filterGames('finished',this)">Finished</div><div class="refresh" id="refreshBtn">Refresh</div></div></header>
 <div id="list">Loading...</div>
 <div id="detail"><div style="padding:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0f0"><b id="detailTitle">Match</b><span onclick="document.getElementById('detail').style.display='none'" style="background:#222;padding:6px 12px;border-radius:20px;cursor:pointer">X Close</span></div><a href="javascript:void(0)" onclick="copyPromo()" class="betbtn">🔥 BET NOW - CODE: ${PROMO_CODE} - TAP TO COPY & BET - 300% BONUS</a><div class="tabbar"><div class="tab active" onclick="showTab('standing')">2026/27 Standing</div><div class="tab" onclick="showTab('h2h')">H2H</div><div class="tab" onclick="showTab('lineup')">Lineup</div><div class="tab" onclick="showTab('stats')">Stats</div></div><div id="tabContent" class="table">Loading...</div></div>
 <script>
 const PROMO='${PROMO_CODE}'; const LINK='${PARTNER_LINK}';
 function copyPromo(){ navigator.clipboard.writeText(PROMO).then(()=>{ alert('Code copied: '+PROMO+' - Opening 1xBet'); window.open(LINK,'_blank'); }).catch(()=>{ window.open(LINK,'_blank'); }); }
-let allData=[]; let detailCache=null;
+let allData=[]; let detailCache=null; let currentFilter='all';
 const list=document.getElementById('list');const datesEl=document.getElementById('dates');let selectedDate=new Date();
 function fmtDate(d){return d.toISOString().slice(0,10)}function dayLabel(d,i){const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];if(i===0)return 'Today';return days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0');}
 function buildDates(){datesEl.innerHTML='';for(let i=-1;i<=1;i++){let dt=new Date();dt.setDate(dt.getDate()+i);let btn=document.createElement('div');btn.className='d'+(i===0?' active':'');btn.textContent=dayLabel(dt,i);btn.onclick=function(){selectedDate=dt;document.querySelectorAll('.d').forEach(x=>x.classList.remove('active'));btn.classList.add('active');load(fmtDate(dt),false);};datesEl.appendChild(btn);}}
-function getTime(m){ if(!m.timestamp) return ''; if(m.status==='1H'||m.status==='2H') return '<span style="color:red">'+(m.elapsed||'')+"'" +'</span>'; if(m.status==='HT') return '<span style="color:#0f0">HT</span>'; let x=new Date(m.timestamp*1000); x.setHours(x.getHours()+1); return x.toISOString().slice(11,16); }
-function sc(m){ if(m.status==='NS') return ''; if(m.status==='1H'||m.status==='2H') return '<div class="score">'+m.score+'</div><div class="ftbadge" style="background:red">LIVE</div>'; if(m.status==='HT') return '<div class="score">'+m.score+'</div><div class="ftbadge" style="background:#0f0;color:#000">HT</div>'; return '<div class="score">'+m.score+'</div><div class="ftbadge">'+m.status+'</div>'; }
+function getTime(m){ if(!m.timestamp) return ''; if(['1H','2H','ET','P'].includes(m.status)) return '<span style="color:red">'+(m.elapsed||'')+"'" +'</span>'; if(m.status==='HT') return '<span style="color:#0f0">HT</span>'; let x=new Date(m.timestamp*1000); x.setHours(x.getHours()+1); return x.toISOString().slice(11,16); }
+function sc(m){ if(m.status==='NS') return ''; if(['1H','2H','HT','ET','P'].includes(m.status)) return '<div class="score">'+m.score+'</div><div class="ftbadge" style="background:red">LIVE</div>'; if(m.status==='FT'||m.status==='AET'||m.status==='PEN') return '<div class="score">'+m.score+'</div><div class="ftbadge">FT</div>'; return '<div class="score">'+m.score+'</div><div class="ftbadge">'+m.status+'</div>'; }
+function isLive(s){ return ['1H','2H','HT','ET','BT','P','LIVE'].includes(s); }
+function isFinished(s){ return ['FT','AET','PEN'].includes(s); }
 document.getElementById('refreshBtn').onclick=()=>load(fmtDate(selectedDate),true);
-async function load(d,force){if(!d)d=fmtDate(selectedDate);list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading...</div>';let r=await fetch('/api/matches?date='+d+(force?'&refresh=1':''));let j=await r.json();allData=j.data||[];render(allData);}
-function render(data){ if(!data.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No games</div>';return} let h=''; let lastKey=''; for(let m of data){ let key=m.country+' - '+m.league; if(key!==lastKey){ h+='<div class="country"><span>'+key+'</span></div>'; lastKey=key; } h+='<div class="card" onclick="openDetail('+m.id+','+m.leagueId+','+m.homeId+','+m.awayId+',\\''+m.home.replace(/'/g,"")+' vs '+m.away.replace(/'/g,"")+'\\')"><div class="left"><div class="time">'+getTime(m)+'</div><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div></div><div class="mid">'+sc(m)+'</div></div>'; } list.innerHTML=h; }
+async function load(d,force){if(!d)d=fmtDate(selectedDate);list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading...</div>';let r=await fetch('/api/matches?date='+d+(force?'&refresh=1':''));let j=await r.json();allData=j.data||[];applyFilter();}
+function filterGames(type,el){ currentFilter=type; document.querySelectorAll('.f').forEach(x=>x.classList.remove('active')); el.classList.add('active'); applyFilter(); }
+function applyFilter(){ let data=allData; if(currentFilter==='live') data=allData.filter(m=>isLive(m.status)); if(currentFilter==='finished') data=allData.filter(m=>isFinished(m.status)); render(data); }
+function render(data){ if(!data.length){ let msg = currentFilter==='live' ? 'No LIVE games right now' : currentFilter==='finished' ? 'No finished games yet' : 'No games'; list.innerHTML='<div style="text-align:center;padding:40px;color:#666">'+msg+'</div>';return} let h=''; let lastKey=''; for(let m of data){ let key=m.country+' - '+m.league; if(key!==lastKey){ h+='<div class="country"><span>'+key+'</span></div>'; lastKey=key; } h+='<div class="card" onclick="openDetail('+m.id+','+m.leagueId+','+m.homeId+','+m.awayId+',\\''+m.home.replace(/'/g,"")+' vs '+m.away.replace(/'/g,"")+'\\')"><div class="left"><div class="time">'+getTime(m)+'</div><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div></div><div class="mid">'+sc(m)+'</div></div>'; } list.innerHTML=h; }
 async function openDetail(id,leagueId,homeId,awayId,title){ document.getElementById('detail').style.display='block'; document.getElementById('detailTitle').textContent=title; document.getElementById('tabContent').innerHTML='Loading 2026/27 data...'; let r=await fetch('/api/detail?id='+id+'&league='+leagueId+'&homeId='+homeId+'&awayId='+awayId); detailCache=await r.json(); showTab('standing'); }
 function showTab(t){ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); let map={'standing':0,'h2h':1,'lineup':2,'stats':3}; document.querySelectorAll('.tab')[map[t]].classList.add('active'); let c=document.getElementById('tabContent'); if(!detailCache){c.innerHTML='No data';return}
- if(t==='standing'){ let st=detailCache.standing[0]?.league?.standings?.[0]||[]; if(!st.length){c.innerHTML='Table not ready yet'; return} let h='<div class="row" style="background:#111;font-size:11px"><span># Team</span><span>MP W D L PTS</span></div>'; st.forEach(s=>{ h+='<div class="row" style="font-size:12px"><span>'+s.rank+'. '+s.team.name+'</span><span>'+s.all.played+' '+s.all.win+' '+s.all.draw+' '+s.all.lose+' &nbsp; '+s.points+'</span></div>'; }); c.innerHTML=h; }
+ if(t==='standing'){ let st=detailCache.standing[0]?.league?.standings?.[0]||[]; if(!st.length){c.innerHTML='Table not ready yet - try Refresh'; return} let h='<div class="row" style="background:#111;font-size:11px"><span># Team</span><span>MP W D L PTS</span></div>'; st.forEach(s=>{ h+='<div class="row" style="font-size:12px"><span>'+s.rank+'. '+s.team.name+'</span><span>'+s.all.played+' '+s.all.win+' '+s.all.draw+' '+s.all.lose+' &nbsp; '+s.points+'</span></div>'; }); c.innerHTML=h; }
  if(t==='h2h'){ let h2=detailCache.h2h||[]; if(!h2.length){c.innerHTML='No H2H yet';return} let h=''; h2.forEach(f=>{ h+='<div class="row"><span>'+f.teams.home.name+' '+f.goals.home+'-'+f.goals.away+' '+f.teams.away.name+'</span><span>'+f.fixture.date.slice(0,10)+'</span></div>'; }); c.innerHTML=h; }
  if(t==='lineup'){ let lp=detailCache.lineup||[]; if(!lp.length){c.innerHTML='Lineup not announced yet';return} let h=''; lp.forEach(l=>{ h+='<div style="padding:10px;background:#111;margin:6px;border-radius:8px"><b>'+l.team.name+' ('+l.formation+')</b><br><span style="font-size:12px;color:#888">'+l.startXI.map(p=>p.player.name).join(', ')+'</span></div>'; }); c.innerHTML=h; }
  if(t==='stats'){ let st=detailCache.stats||[]; if(!st.length){c.innerHTML='Stats available only during/after match';return} let h=''; st.forEach(s=>{ h+='<div style="padding:8px;background:#111;margin:8px;border-radius:8px"><b>'+s.team.name+'</b><br>'+s.statistics.map(x=>'<div class="row"><span>'+x.type+'</span><span>'+x.value+'</span></div>').join('')+'</div>'; }); c.innerHTML=h; }
