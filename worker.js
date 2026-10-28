@@ -5,7 +5,7 @@ export default {
 <title>DIAMOND LIVESCORE</title>
 <script type="module" src="https://widgets.api-sports.io/3.1.0/widgets.js"></script>
 <style>
-body{margin:0;background:#000;color:#fff;font-family:Arial,sans-serif}
+html,body{margin:0;background:#000;color:#fff;font-family:Arial,sans-serif}
 .top-logos{background:#000;display:flex;justify-content:center;gap:12px;padding:12px;border-bottom:2px solid #00ff66;position:sticky;top:0;z-index:100}
 .logo-1x{background:#fff;color:#0a5cff;padding:6px 16px;border-radius:6px;font-weight:900;font-style:italic;font-size:18px}
 .logo-bc{background:#0f1910;color:#00ff66;padding:6px 14px;border-radius:6px;font-weight:900;font-size:17px;border:2px solid #00ff66}
@@ -16,8 +16,7 @@ body{margin:0;background:#000;color:#fff;font-family:Arial,sans-serif}
 .btn-1x{background:#00ff66;color:#000}
 .btn-bc{background:#000;color:#00ff66;border:1.5px solid #00ff66}
 .spacer{height:80px}
-/* SAFE FIX - DON'T BREAK WIDGET */
-api-sports-widget{--toolbar-bg:#000 !important; --toolbar-color:#00ff66 !important}
+#main{background:#000;min-height:400px}
 </style>
 </head><body>
 
@@ -28,21 +27,10 @@ api-sports-widget{--toolbar-bg:#000 !important; --toolbar-color:#00ff66 !importa
 <a class="btn btn-bc" href="https://bc.game/i-99vfhj262r-n/" target="_blank">BC.GAME - BET NOW</a>
 </div>
 
-<api-sports-widget 
-  data-type="config" 
-  data-key="98a19520b228fd8dcff8459b07f0d569" 
-  data-sport="football" 
-  data-theme="Diamond" 
-  data-show-logos="true" 
-  data-target-game="modal" 
-  data-timezone="Africa/Lagos">
-</api-sports-widget>
-
-<api-sports-widget 
-  data-type="games" 
-  data-show-toolbar="true" 
-  data-tab="all">
-</api-sports-widget>
+<div id="main">
+<api-sports-widget data-type="config" data-key="98a19520b228fd8dcff8459b07f0d569" data-sport="football" data-theme="Diamond" data-show-logos="true" data-target-game="modal" data-timezone="Africa/Lagos"></api-sports-widget>
+<api-sports-widget id="gamesWidget" data-type="games" data-show-toolbar="true" data-tab="all"></api-sports-widget>
+</div>
 
 <div class="spacer"></div>
 
@@ -52,24 +40,35 @@ api-sports-widget{--toolbar-bg:#000 !important; --toolbar-color:#00ff66 !importa
 </div>
 
 <script>
-// Safe styling - wait for widget to load then paint toolbar black/green
-const styleToolbar = () => {
-  const widget = document.querySelector('api-sports-widget[data-type="games"]');
-  if(!widget || !widget.shadowRoot) return;
-  const style = document.createElement('style');
-  style.textContent = \`
-    div[class*="toolbar"], header, [class*="header"], [class*="date"] {
-      background: #000 !important;
-      background-color: #000 !important;
-      color: #00ff66 !important;
-      border-color: #00ff66 !important;
-    }
-    * { scrollbar-color: #00ff66 #000; }
-  \`;
-  widget.shadowRoot.appendChild(style);
-};
-
-setInterval(styleToolbar, 1000);
+function paintWidget(){
+  const widgets = document.querySelectorAll('api-sports-widget');
+  widgets.forEach(w=>{
+    if(!w.shadowRoot) return;
+    if(w.shadowRoot.querySelector('#diamond-fix')) return;
+    const s = document.createElement('style');
+    s.id = 'diamond-fix';
+    s.textContent = \`
+      *{background-color:transparent !important}
+      :host, .widget, .container, [class*="container"], [class*="wrapper"]{background:#000 !important;background-color:#000 !important}
+      [class*="toolbar"], [class*="header"], [class*="top"], [class*="nav"], header{
+        background:#000 !important;background-color:#000 !important;
+        color:#00ff66 !important;
+        border-bottom:1.5px solid #00ff66 !important;
+      }
+      [class*="date"], time, [class*="title"]{color:#00ff66 !important}
+      [class*="no-games"], [class*="empty"], [class*="message"], div:has(> p){
+        background:#0a0a0a !important;background-color:#0a0a0a !important;
+        color:#aaa !important;
+      }
+      [class*="game"], [class*="match"], [class*="card"]{background:#0e0e0e !important;border-color:#1a1a1a !important}
+      svg, path{fill:#00ff66 !important; stroke:#00ff66 !important}
+    \`;
+    w.shadowRoot.appendChild(s);
+  });
+}
+// Run every time widget renders
+setInterval(paintWidget, 600);
+new MutationObserver(paintWidget).observe(document.body,{childList:true,subtree:true});
 </script>
 
 </body></html>`;
