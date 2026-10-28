@@ -3,7 +3,7 @@ export default {
     const url = new URL(request.url);
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "*" };
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
-    const API_KEY = env.API_KEY || "98a19520b228fd8dcff8459b07f0d569";
+    const API_KEY = env.
     const TODAY = new Date().toISOString().slice(0,10);
     const PARTNER_LINK = "https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97";
     const PROMO_CODE = "1x_6045135";
