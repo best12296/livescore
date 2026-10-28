@@ -22,30 +22,28 @@ export default {
         data.push({ id:f.fixture?.id, leagueId:f.league?.id||39, country:(f.league?.country||"WORLD").toUpperCase(), league:f.league?.name||"", timestamp:f.fixture?.timestamp, status:f.fixture?.status?.short||"NS", elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:ft, htScore:ht, penScore:pen, rank:getTopRank(f.league?.name||"", f.league?.country||"") });
       }
       data.sort((a,b)=>{ if(a.rank!==b.rank) return a.rank-b.rank; return (a.country+" - "+a.league).toLowerCase().localeCompare((b.country+" - "+b.league).toLowerCase()); });
-      return new Response(JSON.stringify({count:data.length,data:data}),{headers:{...cors,"Content-Type":"application/json","Cache-Control":"max-age=30"}});
+      return new Response(JSON.stringify({count:data.length,data:data}),[STRIPPED]
     }
 
     if(url.pathname==="/api/match-detail"){
       const id = url.searchParams.get("id");
-      const r = await fetch("https://v3.football.api-sports.io/fixtures/events?fixture="+id,{headers:{"x-apisports-key":API_KEY}});
-      const j = await r.json();
-      const events = (j.response||[]).map(e=>({
+      // FETCH BOTH - events + fixture info so ALL leagues get details even if events empty
+      const [evRes, fixRes] = await Promise.all([
+        fetch("https://v3.football.api-sports.io/fixtures/events?fixture="+id,{headers:{"x-apisports-key":API_KEY}}).then(r=>r.json()).catch(()=>({response:[]})),
+        fetch("https://v3.football.api-sports.io/fixtures?id="+id,{headers:{"x-apisports-key":API_KEY}}).then(r=>r.json()).catch(()=>({response:[]}))
+      ]);
+      const events = (evRes.response||[]).map(e=>({
         minuteStr: (e.time?.elapsed||0) + (e.time?.extra ? "+"+e.time.extra : ""),
-        type: e.type,
-        detail: e.detail,
-        team: e.team?.name||"",
-        player: e.player?.name||"",
-        assist: e.assist?.name||""
+        type: e.type, detail: e.detail, team: e.team?.name||"", player: e.player?.name||"", assist: e.assist?.name||""
       }));
-      return new Response(JSON.stringify({events}), {headers:{...cors,"Content-Type":"application/json","Cache-Control":"max-age=20"}});
+      const fix = fixRes.response?.[0] || null;
+      return new Response(JSON.stringify({events, fixture: fix ? {score: fix.score, goals: fix.goals} : null}), {headers:{...cors,"Content-Type":"application/json","Cache-Control":"max-age=15"}});
     }
 
     if(url.pathname==="/api/standings"){
-      const league = url.searchParams.get("league")||"39";
-      const season = url.searchParams.get("season")||"2026";
+      const league = url.searchParams.get("league")||"39"; const season = url.searchParams.get("season")||"2026";
       const apiRes = await fetch(`https://v3.football.api-sports.io/standings?league=${league}&season=${season}`,{headers:{"x-apisports-key":API_KEY}});
-      const j = await apiRes.json();
-      return new Response(JSON.stringify(j),{headers:{...cors,"Content-Type":"application/json"}});
+      const j = await apiRes.json(); return new Response(JSON.stringify(j),{headers:{...cors,"Content-Type":"application/json"}});
     }
 
     const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
@@ -88,42 +86,17 @@ const list=document.getElementById('list');const datesEl=document.getElementById
 function fmtDate(d){return d.toISOString().slice(0,10)}function dayLabel(d,i){const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];if(i===0)return 'Today';return days[d.getDay()]+' '+String(d.getDate()).padStart(2,'0');}
 function buildDates(){datesEl.innerHTML='';for(let i=-1;i<=1;i++){let dt=new Date();dt.setDate(dt.getDate()+i);let btn=document.createElement('div');btn.className='d'+(i===0?' active':'');btn.textContent=dayLabel(dt,i);btn.onclick=function(){selectedDate=dt;document.querySelectorAll('.d').forEach(x=>x.classList.remove('active'));btn.classList.add('active');load(fmtDate(dt),false);};datesEl.appendChild(btn);}}
 function getTime(m){ if(['1H','2H','ET','P'].includes(m.status)) return m.elapsed+"'"; if(m.status==='HT') return 'HT'; let x=new Date(m.timestamp*1000); x.setHours(x.getHours()+1); return x.toISOString().slice(11,16); }
-function sc(m){
-  if(['NS','TBD','PST','CANC'].includes(m.status)) return '';
-  let penTxt = m.penScore ? '<div style="font-size:11px;color:#0f0">(Pen: '+m.penScore+')</div>' : '';
-  if(['1H','2H','ET','P'].includes(m.status)) return '<div class="score" style="color:red">'+m.score+'</div>'+penTxt+'<div class="ftbadge" style="background:red">'+m.elapsed+"'" +'</div>';
-  if(m.status==='HT') return '<div class="score">'+m.score+'</div>'+penTxt+'<div class="ftbadge" style="background:#0f0;color:#000">HT</div>';
-  if(['FT','AET','PEN'].includes(m.status)) return '<div class="score">'+m.score+'</div>'+penTxt+'<div class="ftbadge">FT</div>';
-  return '<div class="score">'+m.score+'</div>'+penTxt+'<div class="ftbadge">'+m.status+'</div>';
-}
-function isLive(s){ return ['1H','2H','HT','ET','BT','P','LIVE'].includes(s); }
-function isFinished(s){ return ['FT','AET','PEN'].includes(s); }
+function sc(m){ if(['NS','TBD','PST','CANC'].includes(m.status)) return ''; let penTxt = m.penScore ? '<div style="font-size:11px;color:#0f0">(Pen: '+m.penScore+')</div>' : ''; if(['1H','2H','ET','P'].includes(m.status)) return '<div class="score" style="color:red">'+m.score+'</div>'+penTxt+'<div class="ftbadge" style="background:red">'+m.elapsed+"'" +'</div>'; if(m.status==='HT') return '<div class="score">'+m.score+'</div>'+penTxt+'<div class="ftbadge" style="background:#0f0;color:#000">HT</div>'; if(['FT','AET','PEN'].includes(m.status)) return '<div class="score">'+m.score+'</div>'+penTxt+'<div class="ftbadge">FT</div>'; return '<div class="score">'+m.score+'</div>'+penTxt+'<div class="ftbadge">'+m.status+'</div>'; }
+function isLive(s){ return ['1H','2H','HT','ET','BT','P','LIVE'].includes(s); } function isFinished(s){ return ['FT','AET','PEN'].includes(s); }
 document.getElementById('refreshBtn').onclick=()=>load(fmtDate(selectedDate),true);
-async function load(d,force){
-  if(!d)d=fmtDate(selectedDate);
-  list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading ALL leagues...</div>';
-  let r=await fetch('/api/matches?date='+d+(force?'&refresh=1':''));let j=await r.json();allData=j.data||[];
-  document.getElementById('liveCount').textContent = allData.filter(m=>isLive(m.status)).length>0 ? '🔴 '+allData.filter(m=>isLive(m.status)).length+' LIVE' : '';
-  applyFilter();
-}
+async function load(d,force){ if(!d)d=fmtDate(selectedDate); list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading ALL leagues...</div>'; let r=await fetch('/api/matches?date='+d+(force?'&refresh=1':''));let j=await r.json();allData=j.data||[]; document.getElementById('liveCount').textContent = allData.filter(m=>isLive(m.status)).length>0 ? '🔴 '+allData.filter(m=>isLive(m.status)).length+' LIVE' : ''; applyFilter(); }
 function filterGames(type,el){ currentFilter=type; document.querySelectorAll('.f').forEach(x=>x.classList.remove('active')); el.classList.add('active'); applyFilter(); }
 function applyFilter(){ let data=allData; if(currentFilter==='live') data=allData.filter(m=>isLive(m.status)); if(currentFilter==='finished') data=allData.filter(m=>isFinished(m.status)); render(data); }
-function render(data){
-  if(!data.length){ list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No games</div>';return}
-  let h=''; let lastKey='';
-  for(let m of data){
-    let key=m.country+' - '+m.league;
-    if(key!==lastKey){ h+='<div class="country"><span>'+key+'</span></div>'; lastKey=key; }
-    let liveClass = isLive(m.status) ? ' live' : '';
-    let timeClass = isLive(m.status) ? ' time live' : ' time';
-    h+='<div class="card'+liveClass+'" onclick="openResult('+m.id+')"><div class="left"><div class="'+timeClass+'">'+getTime(m)+'</div><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div></div><div class="mid">'+sc(m)+'</div></div>';
-  }
-  list.innerHTML=h;
-}
+function render(data){ if(!data.length){ list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No games</div>';return} let h=''; let lastKey=''; for(let m of data){ let key=m.country+' - '+m.league; if(key!==lastKey){ h+='<div class="country"><span>'+key+'</span></div>'; lastKey=key; } let liveClass = isLive(m.status) ? ' live' : ''; let timeClass = isLive(m.status) ? ' time live' : ' time'; h+='<div class="card'+liveClass+'" onclick="openResult('+m.id+')"><div class="left"><div class="'+timeClass+'">'+getTime(m)+'</div><div class="teams"><div>'+m.home+'</div><div>'+m.away+'</div></div></div><div class="mid">'+sc(m)+'</div></div>'; } list.innerHTML=h; }
 async function openResult(id){
   let m = allData.find(x=>x.id===id); if(!m) return; currentMatch=m;
   document.getElementById('modalTitle').textContent=m.home+' vs '+m.away;
-  document.getElementById('modalContent').innerHTML='<div style="text-align:center;color:#0f0">Loading full details for ALL leagues...<br>FT: '+m.score+' | HT: '+(m.htScore||'-')+'</div>';
+  document.getElementById('modalContent').innerHTML='<div style="text-align:center;color:#0f0">Loading details for '+m.home+'...<br>FT: '+m.score+' | HT: '+(m.htScore||'-')+'</div>';
   document.getElementById('resultModal').style.display='flex';
   document.getElementById('tableBtn').style.display='block';
   document.getElementById('tableBtn').textContent='📊 View '+m.league+' Table 2026/27';
@@ -132,30 +105,18 @@ async function openResult(id){
     let j=await r.json(); let ev=j.events||[];
     let html='<div style="text-align:center">FT: <b style="color:#0f0;font-size:24px">'+m.score+'</b></div><div>HT: <b>'+(m.htScore||'-')+'</b></div>';
     if(m.penScore) html+='<div style="color:#0f0">Pen: '+m.penScore+'</div>';
-    if(!ev.length){ html+='<div style="margin-top:12px;color:#888;text-align:center">No detailed events yet<br>Score is FT: '+m.score+'</div>'; }
-    else{
-      function block(title, list){ if(!list.length) return ''; let s='<div class="ev-sec">'+title+'</div>'; list.forEach(e=>{ let col=e.type==='Goal'?'#0f0':e.detail.includes('Yellow')?'#ffeb00':e.detail.includes('Red')?'red':'#0ff'; let icon=e.type==='Goal'?'⚽':e.type==='Card'?(e.detail.includes('Yellow')?'🟨':'🟥'):'🔄'; s+='<div class="card-line"><span style="color:'+col+'">'+e.minuteStr+"' "+icon+' <b>'+e.player+'</b>'+(e.assist?' ('+e.assist+')':'')+'<br><span style="font-size:10px;color:#aaa">['+e.team.slice(0,20)+']</span></span><span style="font-size:10px">'+(e.detail||'')+'</span></div>'; }); return s; }
-      html+=block('⚽ Goals - Minute + Scorer + Assist', ev.filter(e=>e.type==='Goal'));
-      html+=block('🟨🟥 Cards - Yellow/Red + Minute + Player Name', ev.filter(e=>e.type==='Card'));
-      html+=block('🔄 Substitutions - Minute + Names', ev.filter(e=>e.type==='subst'));
+    if(!ev.length){
+      html+='<div style="margin-top:12px;text-align:center;color:#fff"><b style="color:#0f0">Details for ALL leagues:</b><br>FT: '+m.score+'<br>HT: '+(m.htScore||'-')+'<br><br><span style="font-size:12px;color:#888">API has not yet published scorer names for this game. Score is confirmed FT: '+m.score+'.<br>Tap Refresh or try again in 1 min.</span><br><br><button onclick="openResult('+id+')" style="background:#0f0;color:#000;padding:8px 16px;border-radius:20px;border:none;font-weight:900;cursor:pointer">🔄 Retry Details</button></div>';
+    } else {
+      function block(title, list){ if(!list.length) return ''; let s='<div class="ev-sec">'+title+'</div>'; list.forEach(e=>{ let col=e.type==='Goal'?'#0f0':e.detail.includes('Yellow')?'#ffeb00':e.detail.includes('Red')?'red':'#0ff'; let icon=e.type==='Goal'?'⚽':e.type==='Card'?(e.detail.includes('Yellow')?'🟨':'🟥'):'🔄'; s+='<div class="card-line"><span style="color:'+col+'">'+e.minuteStr+"' "+icon+' <b>'+e.player+'</b>'+(e.assist?' ('+e.assist+')':'')+'<br><span style="font-size:10px;color:#aaa">['+e.team.slice(0,22)+']</span></span><span style="font-size:10px">'+(e.detail||'')+'</span></div>'; }); return s; }
+      html+=block('⚽ Goals - Minute + Scorer + Assist (ALL LEAGUES)', ev.filter(e=>e.type==='Goal'));
+      html+=block('🟨🟥 Cards - Yellow/Red + Minute + Player', ev.filter(e=>e.type==='Card'));
+      html+=block('🔄 Substitutions', ev.filter(e=>e.type==='subst'));
     }
     document.getElementById('modalContent').innerHTML=html;
-  }catch(e){ document.getElementById('modalContent').innerHTML='<div style="text-align:center">FT: '+m.score+'<br>Error loading - tap again</div>'; }
+  }catch(e){ document.getElementById('modalContent').innerHTML='<div style="text-align:center">FT: '+m.score+'<br><button onclick="openResult('+id+')" style="background:#0f0;color:#000;padding:8px 16px;border-radius:20px;border:none">Retry</button></div>'; }
 }
-async function openTable(){
-  if(!currentMatch) return;
-  let leagueId = currentMatch.leagueId; let leagueName=currentMatch.league; let country=currentMatch.country; let season=2026;
-  document.getElementById('modalContent').innerHTML='<div style="text-align:center;color:#0f0">Loading '+leagueName+' 2026/27 table...</div>';
-  try{
-    let r = await fetch('/api/standings?league='+leagueId+'&season='+season);
-    let j = await r.json(); let table = j.response?.[0]?.league?.standings?.[0]||[];
-    if(!table.length){ document.getElementById('modalContent').innerHTML='<div style="color:#888">Table not available</div>'; return; }
-    let html='<div style="font-size:12px;color:#0f0;margin-bottom:8px;font-weight:900">'+country+' - '+leagueName+' 2026/27 - ALL LEAGUES</div>';
-    html+='<div style="display:flex;font-size:11px;color:#888;border-bottom:1px solid #333;padding:6px 0"><span style="width:25px">#</span><span style="flex:1">Team</span><span style="width:20px">MP</span><span style="width:50px">G</span><span style="width:30px">PTS</span></div>';
-    table.forEach(t=>{ html+='<div style="display:flex;font-size:13px;padding:5px 0;border-bottom:1px solid #222"><span style="width:25px">'+t.rank+'.</span><span style="flex:1">'+t.team.name+'</span><span style="width:20px">'+t.all.played+'</span><span style="width:50px">'+t.all.goals.for+':'+t.all.goals.against+'</span><span style="width:30px;font-weight:900">'+t.points+'</span></div>'; });
-    document.getElementById('modalContent').innerHTML=html;
-  }catch(e){ document.getElementById('modalContent').innerHTML='<div style="color:red">Error</div>'; }
-}
+async function openTable(){ if(!currentMatch) return; let leagueId = currentMatch.leagueId; let leagueName=currentMatch.league; let country=currentMatch.country; let season=2026; document.getElementById('modalContent').innerHTML='<div style="text-align:center;color:#0f0">Loading '+leagueName+' 2026/27 table...</div>'; try{ let r = await fetch('/api/standings?league='+leagueId+'&season='+season); let j = await r.json(); let table = j.response?.[0]?.league?.standings?.[0]||[]; if(!table.length){ document.getElementById('modalContent').innerHTML='<div style="color:#888">Table not available</div>'; return; } let html='<div style="font-size:12px;color:#0f0;margin-bottom:8px;font-weight:900">'+country+' - '+leagueName+' 2026/27 - ALL LEAGUES</div>'; html+='<div style="display:flex;font-size:11px;color:#888;border-bottom:1px solid #333;padding:6px 0"><span style="width:25px">#</span><span style="flex:1">Team</span><span style="width:20px">MP</span><span style="width:50px">G</span><span style="width:30px">PTS</span></div>'; table.forEach(t=>{ html+='<div style="display:flex;font-size:13px;padding:5px 0;border-bottom:1px solid #222"><span style="width:25px">'+t.rank+'.</span><span style="flex:1">'+t.team.name+'</span><span style="width:20px">'+t.all.played+'</span><span style="width:50px">'+t.all.goals.for+':'+t.all.goals.against+'</span><span style="width:30px;font-weight:900">'+t.points+'</span></div>'; }); document.getElementById('modalContent').innerHTML=html; }catch(e){ document.getElementById('modalContent').innerHTML='<div style="color:red">Error</div>'; } }
 function closeModal(){ document.getElementById('resultModal').style.display='none'; }
 buildDates();load(fmtDate(selectedDate),false);
 setInterval(()=>{ if(allData.some(m=>isLive(m.status))) load(fmtDate(selectedDate),true); }, 40000);
