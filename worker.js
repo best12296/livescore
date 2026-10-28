@@ -13,36 +13,16 @@ export default {
 
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||TODAY;
-      const cacheKey=new Request("https://cache.local/ALL-CLUBS-100-"+date);
-      const cache=caches.default; const cached=await cache.match(cacheKey);
-      if(cached && url.searchParams.get("refresh")!=="1") return new Response(await cached.text(), {headers:{...cors,"Content-Type":"application/json"}});
       const apiRes=await fetch("https://v3.football.api-sports.io/fixtures?date="+date,{headers:{"x-apisports-key":API_KEY}});
       const j=await apiRes.json(); let data=[];
       for(const f of (j.response||[])){
         let ht = (f.score?.halftime?.home!=null) ? f.score.halftime.home+"-"+f.score.halftime.away : "";
         let ft = (f.goals?.home??0)+"-"+(f.goals?.away??0);
         let pen = (f.score?.penalty?.home!=null) ? f.score.penalty.home+"-"+f.score.penalty.away : "";
-        data.push({ id:f.fixture?.id, leagueId:f.league?.id||39, country:(f.league?.country||"WORLD").toUpperCase(), league:f.league?.name||"", timestamp:f.fixture?.timestamp, status:f.fixture?.status?.short||"NS", elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:ft, htScore:ht, penScore:pen, yellow:0, red:0, cards:[], goals:[], rank:getTopRank(f.league?.name||"", f.league?.country||"") });
+        data.push({ id:f.fixture?.id, leagueId:f.league?.id||39, country:(f.league?.country||"WORLD").toUpperCase(), league:f.league?.name||"", timestamp:f.fixture?.timestamp, status:f.fixture?.status?.short||"NS", elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:ft, htScore:ht, penScore:pen, rank:getTopRank(f.league?.name||"", f.league?.country||"") });
       }
-      // FIXED: 100 games for ALL CLUBS
-      let toFetch = data.filter(m=>!['NS','TBD','PST','CANC'].includes(m.status)).slice(0,100);
-      try{
-        let evs = await Promise.all(toFetch.map(async m=>{
-          try{
-            let r = await fetch("https://v3.football.api-sports.io/fixtures/events?fixture="+m.id,{headers:{"x-apisports-key":API_KEY}}).then(x=>x.json());
-            let all = r.response||[];
-            let cards = all.filter(e=>e.type==='Card').map(e=>({ minute: (e.time?.elapsed||0)+(e.time?.extra? "+"+e.time.extra:""), player:e.player?.name||"Player", team:e.team?.name||"", detail:e.detail||"" }));
-            let goals = all.filter(e=>e.type==='Goal').map(e=>({ minute: (e.time?.elapsed||0)+(e.time?.extra? "+"+e.time.extra:""), player:e.player?.name||"", assist:e.assist?.name||"", team:e.team?.name||"", detail:e.detail||"" }));
-            return {id:m.id, cards, goals, yellow:cards.filter(c=>c.detail==='Yellow Card').length, red:cards.filter(c=>c.detail.includes('Red')).length};
-          }catch(e){ return {id:m.id, cards:[], goals:[], yellow:0, red:0} }
-        }));
-        let map={}; evs.forEach(x=>map[x.id]=x);
-        data = data.map(m=>{ if(map[m.id]){ m.cards=map[m.id].cards; m.goals=map[m.id].goals; m.yellow=map[m.id].yellow; m.red=map[m.id].red; } return m; });
-      }catch(e){}
       data.sort((a,b)=>{ if(a.rank!==b.rank) return a.rank-b.rank; return (a.country+" - "+a.league).toLowerCase().localeCompare((b.country+" - "+b.league).toLowerCase()); });
-      const txt=JSON.stringify({count:data.length,data:data});
-      ctx.waitUntil(cache.put(cacheKey,new Response(txt,{headers:{"Content-Type":"application/json","Cache-Control":"max-age=30"}})));
-      return new Response(txt,{headers:{...cors,"Content-Type":"application/json"}});
+      return new Response(JSON.stringify({count:data.length,data:data}),{headers:{...cors,"Content-Type":"application/json","Cache-Control":"max-age=30"}});
     }
 
     if(url.pathname==="/api/match-detail"){
@@ -50,7 +30,6 @@ export default {
       const r = await fetch("https://v3.football.api-sports.io/fixtures/events?fixture="+id,{headers:{"x-apisports-key":API_KEY}});
       const j = await r.json();
       const events = (j.response||[]).map(e=>({
-        minute: e.time?.elapsed||0,
         minuteStr: (e.time?.elapsed||0) + (e.time?.extra ? "+"+e.time.extra : ""),
         type: e.type,
         detail: e.detail,
@@ -58,7 +37,7 @@ export default {
         player: e.player?.name||"",
         assist: e.assist?.name||""
       }));
-      return new Response(JSON.stringify({events}), {headers:{...cors,"Content-Type":"application/json"}});
+      return new Response(JSON.stringify({events}), {headers:{...cors,"Content-Type":"application/json","Cache-Control":"max-age=20"}});
     }
 
     if(url.pathname==="/api/standings"){
@@ -89,8 +68,6 @@ header{position:sticky;top:44px;background:#000;padding:10px 12px;border-bottom:
 .left{display:flex;gap:10px;align-items:center}.time{min-width:60px;text-align:center;background:#000;border:1px solid #0f0;padding:5px 8px;border-radius:20px;font-weight:900;font-size:12px}.time.live{border-color:red !important;color:red;animation:blink 1s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
 .teams{line-height:20px;font-size:14px;max-width:160px}.mid{text-align:right;min-width:110px}.score{font-size:18px;font-weight:900}
-.cardbox{display:inline-block;width:10px;height:14px;border-radius:2px;margin-left:3px;border:1px solid #fff;vertical-align:middle}.redbox{background:red}.yellowbox{background:#ffeb00}
-.min-tag{font-size:10px;color:#888;margin-left:2px}
 .ftbadge{color:#fff;background:#333;padding:2px 8px;border-radius:10px;font-size:11px;display:inline-block;margin-top:3px}
 #resultModal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);z-index:999;display:none;justify-content:center;align-items:center;padding:15px}
 .box{background:#111;border:2px solid #0f0;border-radius:12px;padding:18px;width:100%;max-width:420px;text-align:center;max-height:85vh;overflow:auto}
@@ -113,17 +90,10 @@ function buildDates(){datesEl.innerHTML='';for(let i=-1;i<=1;i++){let dt=new Dat
 function getTime(m){ if(['1H','2H','ET','P'].includes(m.status)) return m.elapsed+"'"; if(m.status==='HT') return 'HT'; let x=new Date(m.timestamp*1000); x.setHours(x.getHours()+1); return x.toISOString().slice(11,16); }
 function sc(m){
   if(['NS','TBD','PST','CANC'].includes(m.status)) return '';
-  let cards = '';
-  if(m.cards && m.cards.length>0){
-    m.cards.slice(0,2).forEach(c=>{
-      let box = c.detail.includes('Yellow') ? '<span class="cardbox yellowbox"></span>' : '<span class="cardbox redbox"></span>';
-      cards += box+'<span class="min-tag">'+c.minute+"'" +'</span> ';
-    });
-  }
   let penTxt = m.penScore ? '<div style="font-size:11px;color:#0f0">(Pen: '+m.penScore+')</div>' : '';
-  if(['1H','2H','ET','P'].includes(m.status)) return '<div class="score" style="color:red">'+m.score+'<br><span style="font-size:10px">'+cards+'</span></div>'+penTxt+'<div class="ftbadge" style="background:red">'+m.elapsed+"'" +'</div>';
-  if(m.status==='HT') return '<div class="score">'+m.score+'<br><span style="font-size:10px">'+cards+'</span></div>'+penTxt+'<div class="ftbadge" style="background:#0f0;color:#000">HT</div>';
-  if(['FT','AET','PEN'].includes(m.status)) return '<div class="score">'+m.score+'<br><span style="font-size:10px">'+cards+'</span></div>'+penTxt+'<div class="ftbadge">FT</div>';
+  if(['1H','2H','ET','P'].includes(m.status)) return '<div class="score" style="color:red">'+m.score+'</div>'+penTxt+'<div class="ftbadge" style="background:red">'+m.elapsed+"'" +'</div>';
+  if(m.status==='HT') return '<div class="score">'+m.score+'</div>'+penTxt+'<div class="ftbadge" style="background:#0f0;color:#000">HT</div>';
+  if(['FT','AET','PEN'].includes(m.status)) return '<div class="score">'+m.score+'</div>'+penTxt+'<div class="ftbadge">FT</div>';
   return '<div class="score">'+m.score+'</div>'+penTxt+'<div class="ftbadge">'+m.status+'</div>';
 }
 function isLive(s){ return ['1H','2H','HT','ET','BT','P','LIVE'].includes(s); }
@@ -131,7 +101,7 @@ function isFinished(s){ return ['FT','AET','PEN'].includes(s); }
 document.getElementById('refreshBtn').onclick=()=>load(fmtDate(selectedDate),true);
 async function load(d,force){
   if(!d)d=fmtDate(selectedDate);
-  list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading ALL clubs...</div>';
+  list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading ALL leagues...</div>';
   let r=await fetch('/api/matches?date='+d+(force?'&refresh=1':''));let j=await r.json();allData=j.data||[];
   document.getElementById('liveCount').textContent = allData.filter(m=>isLive(m.status)).length>0 ? '🔴 '+allData.filter(m=>isLive(m.status)).length+' LIVE' : '';
   applyFilter();
@@ -153,33 +123,24 @@ function render(data){
 async function openResult(id){
   let m = allData.find(x=>x.id===id); if(!m) return; currentMatch=m;
   document.getElementById('modalTitle').textContent=m.home+' vs '+m.away;
+  document.getElementById('modalContent').innerHTML='<div style="text-align:center;color:#0f0">Loading full details for ALL leagues...<br>FT: '+m.score+' | HT: '+(m.htScore||'-')+'</div>';
   document.getElementById('resultModal').style.display='flex';
   document.getElementById('tableBtn').style.display='block';
   document.getElementById('tableBtn').textContent='📊 View '+m.league+' Table 2026/27';
-  
-  // IMMEDIATE SHOW FOR ALL CLUBS FROM CACHED DATA
-  let quickHtml = '<div style="text-align:center">FT: <b style="color:#0f0;font-size:24px">'+m.score+'</b></div><div>HT: <b>'+(m.htScore||'-')+'</b></div>';
-  if(m.penScore) quickHtml+='<div style="color:#0f0">Pen: '+m.penScore+'</div>';
-  if(m.goals && m.goals.length){ quickHtml+='<div class="ev-sec">⚽ Goals</div>'; m.goals.forEach(g=>{ quickHtml+='<div class="card-line"><span>'+g.minute+"' ⚽ <b>"+g.player+'</b> '+(g.assist?'('+g.assist+')':'')+'</span><span>['+g.team.slice(0,12)+'] - '+g.detail+'</span></div>'; }); }
-  if(m.cards && m.cards.length){ quickHtml+='<div class="ev-sec">🟨🟥 Cards</div>'; m.cards.forEach(c=>{ let icon=c.detail.includes('Yellow')?'<span class="cardbox yellowbox"></span>':'<span class="cardbox redbox"></span>'; quickHtml+='<div class="card-line"><span>'+icon+' <b>'+c.minute+"' "+c.player+'</b></span><span>['+c.team.slice(0,12)+'] - '+c.detail+'</span></div>'; }); }
-  if(!m.goals.length && !m.cards.length) quickHtml+='<div style="margin-top:10px;color:#888;text-align:center">No goals/cards - fetching full details...</div>';
-  document.getElementById('modalContent').innerHTML=quickHtml;
-
-  // FETCH FULL DETAILS TOO
   try{
     let r=await fetch('/api/match-detail?id='+id);
     let j=await r.json(); let ev=j.events||[];
-    if(ev.length){
-      let html='<div style="text-align:center">FT: <b style="color:#0f0;font-size:24px">'+m.score+'</b></div><div>HT: <b>'+(m.htScore||'-')+'</b></div>';
-      if(m.penScore) html+='<div style="color:#0f0">Pen: '+m.penScore+'</div>';
-      let goals=ev.filter(e=>e.type==='Goal'), cards=ev.filter(e=>e.type==='Card'), subs=ev.filter(e=>e.type==='subst');
-      function block(title, list){ if(!list.length) return ''; let s='<div class="ev-sec">'+title+'</div>'; list.forEach(e=>{ let col=e.type==='Goal'?'#0f0':e.detail.includes('Yellow')?'#ffeb00':'red'; s+='<div class="card-line"><span style="color:'+col+'">'+e.minuteStr+"' "+(e.type==='Goal'?'⚽':e.type==='Card'?(e.detail.includes('Yellow')?'🟨':'🟥'):'🔄')+' <b>'+e.player+'</b>'+(e.assist?' ('+e.assist+')':'')+'</span><span style="font-size:10px">'+(e.detail||'')+'</span></div>'; }); return s; }
-      html+=block('⚽ Goals - Minute + Scorer + Assist', goals);
-      html+=block('🟨🟥 Cards - Minute + Player', cards);
-      html+=block('🔄 Subs', subs);
-      document.getElementById('modalContent').innerHTML=html;
+    let html='<div style="text-align:center">FT: <b style="color:#0f0;font-size:24px">'+m.score+'</b></div><div>HT: <b>'+(m.htScore||'-')+'</b></div>';
+    if(m.penScore) html+='<div style="color:#0f0">Pen: '+m.penScore+'</div>';
+    if(!ev.length){ html+='<div style="margin-top:12px;color:#888;text-align:center">No detailed events yet<br>Score is FT: '+m.score+'</div>'; }
+    else{
+      function block(title, list){ if(!list.length) return ''; let s='<div class="ev-sec">'+title+'</div>'; list.forEach(e=>{ let col=e.type==='Goal'?'#0f0':e.detail.includes('Yellow')?'#ffeb00':e.detail.includes('Red')?'red':'#0ff'; let icon=e.type==='Goal'?'⚽':e.type==='Card'?(e.detail.includes('Yellow')?'🟨':'🟥'):'🔄'; s+='<div class="card-line"><span style="color:'+col+'">'+e.minuteStr+"' "+icon+' <b>'+e.player+'</b>'+(e.assist?' ('+e.assist+')':'')+'<br><span style="font-size:10px;color:#aaa">['+e.team.slice(0,20)+']</span></span><span style="font-size:10px">'+(e.detail||'')+'</span></div>'; }); return s; }
+      html+=block('⚽ Goals - Minute + Scorer + Assist', ev.filter(e=>e.type==='Goal'));
+      html+=block('🟨🟥 Cards - Yellow/Red + Minute + Player Name', ev.filter(e=>e.type==='Card'));
+      html+=block('🔄 Substitutions - Minute + Names', ev.filter(e=>e.type==='subst'));
     }
-  }catch(e){}
+    document.getElementById('modalContent').innerHTML=html;
+  }catch(e){ document.getElementById('modalContent').innerHTML='<div style="text-align:center">FT: '+m.score+'<br>Error loading - tap again</div>'; }
 }
 async function openTable(){
   if(!currentMatch) return;
@@ -189,7 +150,7 @@ async function openTable(){
     let r = await fetch('/api/standings?league='+leagueId+'&season='+season);
     let j = await r.json(); let table = j.response?.[0]?.league?.standings?.[0]||[];
     if(!table.length){ document.getElementById('modalContent').innerHTML='<div style="color:#888">Table not available</div>'; return; }
-    let html='<div style="font-size:12px;color:#0f0;margin-bottom:8px;font-weight:900">'+country+' - '+leagueName+' 2026/27</div>';
+    let html='<div style="font-size:12px;color:#0f0;margin-bottom:8px;font-weight:900">'+country+' - '+leagueName+' 2026/27 - ALL LEAGUES</div>';
     html+='<div style="display:flex;font-size:11px;color:#888;border-bottom:1px solid #333;padding:6px 0"><span style="width:25px">#</span><span style="flex:1">Team</span><span style="width:20px">MP</span><span style="width:50px">G</span><span style="width:30px">PTS</span></div>';
     table.forEach(t=>{ html+='<div style="display:flex;font-size:13px;padding:5px 0;border-bottom:1px solid #222"><span style="width:25px">'+t.rank+'.</span><span style="flex:1">'+t.team.name+'</span><span style="width:20px">'+t.all.played+'</span><span style="width:50px">'+t.all.goals.for+':'+t.all.goals.against+'</span><span style="width:30px;font-weight:900">'+t.points+'</span></div>'; });
     document.getElementById('modalContent').innerHTML=html;
