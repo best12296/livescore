@@ -22,12 +22,11 @@ export default {
         data.push({ id:f.fixture?.id, leagueId:f.league?.id||39, country:(f.league?.country||"WORLD").toUpperCase(), league:f.league?.name||"", timestamp:f.fixture?.timestamp, status:f.fixture?.status?.short||"NS", elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:ft, htScore:ht, penScore:pen, rank:getTopRank(f.league?.name||"", f.league?.country||"") });
       }
       data.sort((a,b)=>{ if(a.rank!==b.rank) return a.rank-b.rank; return (a.country+" - "+a.league).toLowerCase().localeCompare((b.country+" - "+b.league).toLowerCase()); });
-      return new Response(JSON.stringify({count:data.length,data:data}),[STRIPPED]
+      return new Response(JSON.stringify({count:data.length,data:data}),{headers:{...cors,"Content-Type":"application/json","Cache-Control":"no-store"}});
     }
 
     if(url.pathname==="/api/match-detail"){
       const id = url.searchParams.get("id");
-      // FETCH BOTH - events + fixture info so ALL leagues get details even if events empty
       const [evRes, fixRes] = await Promise.all([
         fetch("https://v3.football.api-sports.io/fixtures/events?fixture="+id,{headers:{"x-apisports-key":API_KEY}}).then(r=>r.json()).catch(()=>({response:[]})),
         fetch("https://v3.football.api-sports.io/fixtures?id="+id,{headers:{"x-apisports-key":API_KEY}}).then(r=>r.json()).catch(()=>({response:[]}))
@@ -36,17 +35,18 @@ export default {
         minuteStr: (e.time?.elapsed||0) + (e.time?.extra ? "+"+e.time.extra : ""),
         type: e.type, detail: e.detail, team: e.team?.name||"", player: e.player?.name||"", assist: e.assist?.name||""
       }));
-      const fix = fixRes.response?.[0] || null;
-      return new Response(JSON.stringify({events, fixture: fix ? {score: fix.score, goals: fix.goals} : null}), {headers:{...cors,"Content-Type":"application/json","Cache-Control":"max-age=15"}});
+      return new Response(JSON.stringify({events}),{headers:{...cors,"Content-Type":"application/json","Cache-Control":"max-age=15"}});
     }
 
     if(url.pathname==="/api/standings"){
-      const league = url.searchParams.get("league")||"39"; const season = url.searchParams.get("season")||"2026";
-      const apiRes = await fetch(`https://v3.football.api-sports.io/standings?league=${league}&season=${season}`,{headers:{"x-apisports-key":API_KEY}});
-      const j = await apiRes.json(); return new Response(JSON.stringify(j),{headers:{...cors,"Content-Type":"application/json"}});
+      const league = url.searchParams.get("league")||"39";
+      const season = url.searchParams.get("season")||"2026";
+      const apiRes = await fetch("https://v3.football.api-sports.io/standings?league="+league+"&season="+season,{headers:{"x-apisports-key":API_KEY}});
+      const j = await apiRes.json();
+      return new Response(JSON.stringify(j),{headers:{...cors,"Content-Type":"application/json"}});
     }
 
-    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE</title><style>
 body{margin:0;background:#000;color:#fff;font-family:Arial;font-weight:700}
 .top-banner{background:linear-gradient(90deg,#1a5cff,#00d800);color:#fff;text-align:center;padding:8px 12px;position:sticky;top:0;z-index:100;display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap}
 .xlogo{background:#fff;color:#0046ff;padding:2px 8px;border-radius:4px;font-weight:900;font-style:italic;font-size:14px}
@@ -96,7 +96,7 @@ function render(data){ if(!data.length){ list.innerHTML='<div style="text-align:
 async function openResult(id){
   let m = allData.find(x=>x.id===id); if(!m) return; currentMatch=m;
   document.getElementById('modalTitle').textContent=m.home+' vs '+m.away;
-  document.getElementById('modalContent').innerHTML='<div style="text-align:center;color:#0f0">Loading details for '+m.home+'...<br>FT: '+m.score+' | HT: '+(m.htScore||'-')+'</div>';
+  document.getElementById('modalContent').innerHTML='<div style="text-align:center;color:#0f0">Loading details... FT: '+m.score+' | HT: '+(m.htScore||'-')+'</div>';
   document.getElementById('resultModal').style.display='flex';
   document.getElementById('tableBtn').style.display='block';
   document.getElementById('tableBtn').textContent='📊 View '+m.league+' Table 2026/27';
@@ -106,12 +106,12 @@ async function openResult(id){
     let html='<div style="text-align:center">FT: <b style="color:#0f0;font-size:24px">'+m.score+'</b></div><div>HT: <b>'+(m.htScore||'-')+'</b></div>';
     if(m.penScore) html+='<div style="color:#0f0">Pen: '+m.penScore+'</div>';
     if(!ev.length){
-      html+='<div style="margin-top:12px;text-align:center;color:#fff"><b style="color:#0f0">Details for ALL leagues:</b><br>FT: '+m.score+'<br>HT: '+(m.htScore||'-')+'<br><br><span style="font-size:12px;color:#888">API has not yet published scorer names for this game. Score is confirmed FT: '+m.score+'.<br>Tap Refresh or try again in 1 min.</span><br><br><button onclick="openResult('+id+')" style="background:#0f0;color:#000;padding:8px 16px;border-radius:20px;border:none;font-weight:900;cursor:pointer">🔄 Retry Details</button></div>';
+      html+='<div style="margin-top:12px;text-align:center"><b>FT: '+m.score+' | HT: '+(m.htScore||'-')+'</b><br><br><span style="font-size:12px;color:#888">Scorer details not yet published by API for this league. Tap retry.</span><br><br><button onclick="openResult('+id+')" style="background:#0f0;color:#000;padding:8px 16px;border-radius:20px;border:none;font-weight:900">🔄 Retry</button></div>';
     } else {
       function block(title, list){ if(!list.length) return ''; let s='<div class="ev-sec">'+title+'</div>'; list.forEach(e=>{ let col=e.type==='Goal'?'#0f0':e.detail.includes('Yellow')?'#ffeb00':e.detail.includes('Red')?'red':'#0ff'; let icon=e.type==='Goal'?'⚽':e.type==='Card'?(e.detail.includes('Yellow')?'🟨':'🟥'):'🔄'; s+='<div class="card-line"><span style="color:'+col+'">'+e.minuteStr+"' "+icon+' <b>'+e.player+'</b>'+(e.assist?' ('+e.assist+')':'')+'<br><span style="font-size:10px;color:#aaa">['+e.team.slice(0,22)+']</span></span><span style="font-size:10px">'+(e.detail||'')+'</span></div>'; }); return s; }
-      html+=block('⚽ Goals - Minute + Scorer + Assist (ALL LEAGUES)', ev.filter(e=>e.type==='Goal'));
-      html+=block('🟨🟥 Cards - Yellow/Red + Minute + Player', ev.filter(e=>e.type==='Card'));
-      html+=block('🔄 Substitutions', ev.filter(e=>e.type==='subst'));
+      html+=block('⚽ Goals - ALL LEAGUES', ev.filter(e=>e.type==='Goal'));
+      html+=block('🟨🟥 Cards', ev.filter(e=>e.type==='Card'));
+      html+=block('🔄 Subs', ev.filter(e=>e.type==='subst'));
     }
     document.getElementById('modalContent').innerHTML=html;
   }catch(e){ document.getElementById('modalContent').innerHTML='<div style="text-align:center">FT: '+m.score+'<br><button onclick="openResult('+id+')" style="background:#0f0;color:#000;padding:8px 16px;border-radius:20px;border:none">Retry</button></div>'; }
