@@ -13,7 +13,7 @@ export default {
 
     if(url.pathname==="/api/matches"){
       const date=url.searchParams.get("date")||TODAY;
-      const cacheKey=new Request("https://cache.local/CARD-MINS-"+date);
+      const cacheKey=new Request("https://cache.local/ALL-CLUBS-100-"+date);
       const cache=caches.default; const cached=await cache.match(cacheKey);
       if(cached && url.searchParams.get("refresh")!=="1") return new Response(await cached.text(), {headers:{...cors,"Content-Type":"application/json"}});
       const apiRes=await fetch("https://v3.football.api-sports.io/fixtures?date="+date,{headers:{"x-apisports-key":API_KEY}});
@@ -22,27 +22,26 @@ export default {
         let ht = (f.score?.halftime?.home!=null) ? f.score.halftime.home+"-"+f.score.halftime.away : "";
         let ft = (f.goals?.home??0)+"-"+(f.goals?.away??0);
         let pen = (f.score?.penalty?.home!=null) ? f.score.penalty.home+"-"+f.score.penalty.away : "";
-        data.push({ id:f.fixture?.id, leagueId:f.league?.id||39, country:(f.league?.country||"WORLD").toUpperCase(), league:f.league?.name||"", timestamp:f.fixture?.timestamp, status:f.fixture?.status?.short||"NS", elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:ft, htScore:ht, penScore:pen, yellow:0, red:0, cards:[], rank:getTopRank(f.league?.name||"", f.league?.country||"") });
+        data.push({ id:f.fixture?.id, leagueId:f.league?.id||39, country:(f.league?.country||"WORLD").toUpperCase(), league:f.league?.name||"", timestamp:f.fixture?.timestamp, status:f.fixture?.status?.short||"NS", elapsed:f.fixture?.status?.elapsed||"", home:f.teams?.home?.name||"", away:f.teams?.away?.name||"", score:ft, htScore:ht, penScore:pen, yellow:0, red:0, cards:[], goals:[], rank:getTopRank(f.league?.name||"", f.league?.country||"") });
       }
-      let toFetch = data.filter(m=>['FT','AET','PEN','1H','2H','HT','ET','LIVE'].includes(m.status)).slice(0,40);
+      // FIXED: 100 games for ALL CLUBS
+      let toFetch = data.filter(m=>!['NS','TBD','PST','CANC'].includes(m.status)).slice(0,100);
       try{
-        let cards = await Promise.all(toFetch.map(async m=>{
+        let evs = await Promise.all(toFetch.map(async m=>{
           try{
             let r = await fetch("https://v3.football.api-sports.io/fixtures/events?fixture="+m.id,{headers:{"x-apisports-key":API_KEY}}).then(x=>x.json());
-            let list = (r.response||[]).filter(e=>e.type==='Card').map(e=>{
-              return { minute: (e.time?.elapsed||0) + (e.time?.extra ? "+"+e.time.extra : ""), player: e.player?.name||"Player", team: e.team?.name||"", detail: e.detail||"" };
-            });
-            let yellows = list.filter(c=>c.detail==='Yellow Card').length;
-            let reds = list.filter(c=>c.detail.includes('Red')).length;
-            return {id:m.id, yellow:yellows, red:reds, cards:list};
-          }catch(e){ return {id:m.id, yellow:0, red:0, cards:[]} }
+            let all = r.response||[];
+            let cards = all.filter(e=>e.type==='Card').map(e=>({ minute: (e.time?.elapsed||0)+(e.time?.extra? "+"+e.time.extra:""), player:e.player?.name||"Player", team:e.team?.name||"", detail:e.detail||"" }));
+            let goals = all.filter(e=>e.type==='Goal').map(e=>({ minute: (e.time?.elapsed||0)+(e.time?.extra? "+"+e.time.extra:""), player:e.player?.name||"", assist:e.assist?.name||"", team:e.team?.name||"", detail:e.detail||"" }));
+            return {id:m.id, cards, goals, yellow:cards.filter(c=>c.detail==='Yellow Card').length, red:cards.filter(c=>c.detail.includes('Red')).length};
+          }catch(e){ return {id:m.id, cards:[], goals:[], yellow:0, red:0} }
         }));
-        let map={}; cards.forEach(x=>map[x.id]=x);
-        data = data.map(m=>{ if(map[m.id]){ m.yellow=map[m.id].yellow; m.red=map[m.id].red; m.cards=map[m.id].cards; } return m; });
+        let map={}; evs.forEach(x=>map[x.id]=x);
+        data = data.map(m=>{ if(map[m.id]){ m.cards=map[m.id].cards; m.goals=map[m.id].goals; m.yellow=map[m.id].yellow; m.red=map[m.id].red; } return m; });
       }catch(e){}
       data.sort((a,b)=>{ if(a.rank!==b.rank) return a.rank-b.rank; return (a.country+" - "+a.league).toLowerCase().localeCompare((b.country+" - "+b.league).toLowerCase()); });
       const txt=JSON.stringify({count:data.length,data:data});
-      ctx.waitUntil(cache.put(cacheKey,new Response(txt,{headers:{"Content-Type":"application/json","Cache-Control":"max-age=60"}})));
+      ctx.waitUntil(cache.put(cacheKey,new Response(txt,{headers:{"Content-Type":"application/json","Cache-Control":"max-age=30"}})));
       return new Response(txt,{headers:{...cors,"Content-Type":"application/json"}});
     }
 
@@ -116,13 +115,10 @@ function sc(m){
   if(['NS','TBD','PST','CANC'].includes(m.status)) return '';
   let cards = '';
   if(m.cards && m.cards.length>0){
-    m.cards.slice(0,3).forEach(c=>{
+    m.cards.slice(0,2).forEach(c=>{
       let box = c.detail.includes('Yellow') ? '<span class="cardbox yellowbox"></span>' : '<span class="cardbox redbox"></span>';
       cards += box+'<span class="min-tag">'+c.minute+"'" +'</span> ';
     });
-  } else {
-    if(m.yellow>0) cards += '<span class="cardbox yellowbox"></span>';
-    if(m.red>0) cards += '<span class="cardbox redbox"></span>';
   }
   let penTxt = m.penScore ? '<div style="font-size:11px;color:#0f0">(Pen: '+m.penScore+')</div>' : '';
   if(['1H','2H','ET','P'].includes(m.status)) return '<div class="score" style="color:red">'+m.score+'<br><span style="font-size:10px">'+cards+'</span></div>'+penTxt+'<div class="ftbadge" style="background:red">'+m.elapsed+"'" +'</div>';
@@ -132,20 +128,18 @@ function sc(m){
 }
 function isLive(s){ return ['1H','2H','HT','ET','BT','P','LIVE'].includes(s); }
 function isFinished(s){ return ['FT','AET','PEN'].includes(s); }
-function isNotStarted(s){ return ['NS','TBD','PST','CANC'].includes(s); }
 document.getElementById('refreshBtn').onclick=()=>load(fmtDate(selectedDate),true);
 async function load(d,force){
   if(!d)d=fmtDate(selectedDate);
-  list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading cards with minutes...</div>';
+  list.innerHTML='<div style="text-align:center;padding:30px;color:#0f0">Loading ALL clubs...</div>';
   let r=await fetch('/api/matches?date='+d+(force?'&refresh=1':''));let j=await r.json();allData=j.data||[];
-  let liveN = allData.filter(m=>isLive(m.status)).length;
-  document.getElementById('liveCount').textContent = liveN>0 ? '🔴 '+liveN+' LIVE' : '';
+  document.getElementById('liveCount').textContent = allData.filter(m=>isLive(m.status)).length>0 ? '🔴 '+allData.filter(m=>isLive(m.status)).length+' LIVE' : '';
   applyFilter();
 }
 function filterGames(type,el){ currentFilter=type; document.querySelectorAll('.f').forEach(x=>x.classList.remove('active')); el.classList.add('active'); applyFilter(); }
 function applyFilter(){ let data=allData; if(currentFilter==='live') data=allData.filter(m=>isLive(m.status)); if(currentFilter==='finished') data=allData.filter(m=>isFinished(m.status)); render(data); }
 function render(data){
-  if(!data.length){ let msg = currentFilter==='live' ? 'No LIVE games now' : currentFilter==='finished' ? 'No finished games yet' : 'No games'; list.innerHTML='<div style="text-align:center;padding:40px;color:#666">'+msg+'</div>';return}
+  if(!data.length){ list.innerHTML='<div style="text-align:center;padding:40px;color:#666">No games</div>';return}
   let h=''; let lastKey='';
   for(let m of data){
     let key=m.country+' - '+m.league;
@@ -159,40 +153,33 @@ function render(data){
 async function openResult(id){
   let m = allData.find(x=>x.id===id); if(!m) return; currentMatch=m;
   document.getElementById('modalTitle').textContent=m.home+' vs '+m.away;
-  document.getElementById('modalContent').innerHTML='<div style="text-align:center;color:#0f0">Loading ALL events like Flashscore...</div>';
   document.getElementById('resultModal').style.display='flex';
   document.getElementById('tableBtn').style.display='block';
   document.getElementById('tableBtn').textContent='📊 View '+m.league+' Table 2026/27';
+  
+  // IMMEDIATE SHOW FOR ALL CLUBS FROM CACHED DATA
+  let quickHtml = '<div style="text-align:center">FT: <b style="color:#0f0;font-size:24px">'+m.score+'</b></div><div>HT: <b>'+(m.htScore||'-')+'</b></div>';
+  if(m.penScore) quickHtml+='<div style="color:#0f0">Pen: '+m.penScore+'</div>';
+  if(m.goals && m.goals.length){ quickHtml+='<div class="ev-sec">⚽ Goals</div>'; m.goals.forEach(g=>{ quickHtml+='<div class="card-line"><span>'+g.minute+"' ⚽ <b>"+g.player+'</b> '+(g.assist?'('+g.assist+')':'')+'</span><span>['+g.team.slice(0,12)+'] - '+g.detail+'</span></div>'; }); }
+  if(m.cards && m.cards.length){ quickHtml+='<div class="ev-sec">🟨🟥 Cards</div>'; m.cards.forEach(c=>{ let icon=c.detail.includes('Yellow')?'<span class="cardbox yellowbox"></span>':'<span class="cardbox redbox"></span>'; quickHtml+='<div class="card-line"><span>'+icon+' <b>'+c.minute+"' "+c.player+'</b></span><span>['+c.team.slice(0,12)+'] - '+c.detail+'</span></div>'; }); }
+  if(!m.goals.length && !m.cards.length) quickHtml+='<div style="margin-top:10px;color:#888;text-align:center">No goals/cards - fetching full details...</div>';
+  document.getElementById('modalContent').innerHTML=quickHtml;
+
+  // FETCH FULL DETAILS TOO
   try{
     let r=await fetch('/api/match-detail?id='+id);
-    let j=await r.json();
-    let ev=j.events||[];
-    let html='<div style="text-align:center">FT: <b style="color:#0f0;font-size:24px">'+m.score+'</b></div><div style="margin-top:6px">HT: <b>'+(m.htScore||'-')+'</b></div>';
-    if(m.penScore) html+='<div style="color:#0f0">Pen: '+m.penScore+'</div>';
-    if(!ev.length){ html+='<div style="margin-top:12px;color:#888">No events yet</div>'; }
-    else{
-      function block(title, list){
-        if(!list.length) return '';
-        let s='<div class="ev-sec">'+title+'</div>';
-        list.forEach(e=>{
-          let icon='⚽'; let color='#fff';
-          if(e.type==='Goal'){ icon='⚽'; color='#0f0'; }
-          if(e.type==='Card'){ icon = e.detail.includes('Yellow') ? '🟨' : '🟥'; color = e.detail.includes('Yellow') ? '#ffeb00' : 'red'; }
-          if(e.type==='subst'){ icon='🔄'; color='#0ff'; }
-          let assist = e.assist ? ' ('+e.assist+')' : '';
-          s+='<div class="card-line"><span style="color:'+color+'">'+e.minuteStr+"' "+icon+' <b>'+e.player+'</b>'+assist+' <span style="font-size:10px;color:#888">['+e.team.substring(0,15)+']</span></span><span style="font-size:10px;color:#aaa">'+(e.detail||e.type)+'</span></div>';
-        });
-        return s;
-      }
-      let goals = ev.filter(e=>e.type==='Goal');
-      let cards = ev.filter(e=>e.type==='Card');
-      let subs = ev.filter(e=>e.type==='subst');
-      html+=block('⚽ Goals - Minute + Scorer Name', goals);
-      html+=block('🟨🟥 Cards - Yellow/Red + Minute + Player', cards);
-      html+=block('🔄 Substitutions - Minute + Names', subs);
+    let j=await r.json(); let ev=j.events||[];
+    if(ev.length){
+      let html='<div style="text-align:center">FT: <b style="color:#0f0;font-size:24px">'+m.score+'</b></div><div>HT: <b>'+(m.htScore||'-')+'</b></div>';
+      if(m.penScore) html+='<div style="color:#0f0">Pen: '+m.penScore+'</div>';
+      let goals=ev.filter(e=>e.type==='Goal'), cards=ev.filter(e=>e.type==='Card'), subs=ev.filter(e=>e.type==='subst');
+      function block(title, list){ if(!list.length) return ''; let s='<div class="ev-sec">'+title+'</div>'; list.forEach(e=>{ let col=e.type==='Goal'?'#0f0':e.detail.includes('Yellow')?'#ffeb00':'red'; s+='<div class="card-line"><span style="color:'+col+'">'+e.minuteStr+"' "+(e.type==='Goal'?'⚽':e.type==='Card'?(e.detail.includes('Yellow')?'🟨':'🟥'):'🔄')+' <b>'+e.player+'</b>'+(e.assist?' ('+e.assist+')':'')+'</span><span style="font-size:10px">'+(e.detail||'')+'</span></div>'; }); return s; }
+      html+=block('⚽ Goals - Minute + Scorer + Assist', goals);
+      html+=block('🟨🟥 Cards - Minute + Player', cards);
+      html+=block('🔄 Subs', subs);
+      document.getElementById('modalContent').innerHTML=html;
     }
-    document.getElementById('modalContent').innerHTML=html;
-  }catch(e){ document.getElementById('modalContent').innerHTML='Error loading'; }
+  }catch(e){}
 }
 async function openTable(){
   if(!currentMatch) return;
@@ -201,8 +188,8 @@ async function openTable(){
   try{
     let r = await fetch('/api/standings?league='+leagueId+'&season='+season);
     let j = await r.json(); let table = j.response?.[0]?.league?.standings?.[0]||[];
-    if(!table.length){ document.getElementById('modalContent').innerHTML='<div style="color:#888">Table not available for this league yet</div>'; return; }
-    let html='<div style="font-size:12px;color:#0f0;margin-bottom:8px;font-weight:900">'+country+' - '+leagueName+' 2026/27 - This Year Table</div>';
+    if(!table.length){ document.getElementById('modalContent').innerHTML='<div style="color:#888">Table not available</div>'; return; }
+    let html='<div style="font-size:12px;color:#0f0;margin-bottom:8px;font-weight:900">'+country+' - '+leagueName+' 2026/27</div>';
     html+='<div style="display:flex;font-size:11px;color:#888;border-bottom:1px solid #333;padding:6px 0"><span style="width:25px">#</span><span style="flex:1">Team</span><span style="width:20px">MP</span><span style="width:50px">G</span><span style="width:30px">PTS</span></div>';
     table.forEach(t=>{ html+='<div style="display:flex;font-size:13px;padding:5px 0;border-bottom:1px solid #222"><span style="width:25px">'+t.rank+'.</span><span style="flex:1">'+t.team.name+'</span><span style="width:20px">'+t.all.played+'</span><span style="width:50px">'+t.all.goals.for+':'+t.all.goals.against+'</span><span style="width:30px;font-weight:900">'+t.points+'</span></div>'; });
     document.getElementById('modalContent').innerHTML=html;
