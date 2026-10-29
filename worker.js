@@ -1,21 +1,5 @@
-const API_KEY = "98a19520b228fd8dcff8459b07f0d569";
-
 export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    
-    if(url.pathname === "/api/standings"){
-      const league = url.searchParams.get("league") || "39";
-      const season = url.searchParams.get("season") || "2025";
-      const apiRes = await fetch(`https://v3.football.api-sports.io/standings?league=${league}&season=${season}`, {
-        headers: { "x-apisports-key": API_KEY }
-      });
-      const data = await apiRes.json();
-      return new Response(JSON.stringify(data), { 
-        headers: { "Content-Type":"application/json", "Access-Control-Allow-Origin":"*" }
-      });
-    }
-
+  async fetch() {
     const html = `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DIAMOND LIVESCORE</title>
@@ -27,78 +11,148 @@ html,body{margin:0;background:#000 !important;color:#fff;font-family:Arial,sans-
 .bet-bar{display:flex;gap:8px;padding:10px;background:#000;overflow-x:auto}
 .bet-bar.top{position:sticky;top:52px;z-index:99}
 .bet-bar.bottom{position:fixed;bottom:0;left:0;right:0;border-top:2px solid #00ff66;z-index:9999;background:#000}
-.btn{flex:1;text-align:center;padding:12px;border-radius:10px;font-weight:900;text-decoration:none;font-size:13px;white-space:nowrap}
+.btn{flex:1;text-align:center;padding:12px;border-radius:10px;font-weight:900;text-decoration:none;font-size:13px}
 .btn-1x{background:#00ff66;color:#000}
-.btn-table{background:#111;color:#00ff66;border:1px solid #00ff66}
 .spacer{height:90px}
-#main{background:#000}
-#standingsWrap{display:none;background:#000;padding:10px;min-height:400px}
-#backBtn{background:#00ff66;color:#000;border:none;padding:12px;border-radius:8px;font-weight:900;width:100%;margin-bottom:12px}
-#tableTitle{color:#00ff66;font-weight:900;border-left:3px solid #00ff66;padding-left:8px;margin-bottom:10px}
-table{width:100%;border-collapse:collapse;background:#0e0e0e}
-th{background:#000;color:#00ff66;padding:10px 6px;text-align:left;font-size:12px;border-bottom:2px solid #00ff66}
-td{padding:10px 6px;border-bottom:1px solid #1a1a1a;font-size:13px;color:#fff}
-.pos{color:#00ff66;font-weight:900}
+#main{background:#000;min-height:100vh}
 </style>
 </head><body>
 
 <div class="top-logos"><span class="logo-1x">DIAMOND LIVESCORE</span></div>
 
-<div class="bet-bar top" style="flex-direction:column">
+<div class="bet-bar top">
 <a class="btn btn-1x" href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank">1XBET - BET NOW - BONUS 300%</a>
-<div style="display:flex;gap:6px;overflow-x:auto;margin-top:8px">
-<button class="btn btn-table" onclick="loadTable(39,'England Premier League')">EPL</button>
-<button class="btn btn-table" onclick="loadTable(140,'Spain La Liga')">LA LIGA</button>
-<button class="btn btn-table" onclick="loadTable(135,'Italy Serie A')">SERIE A</button>
-<button class="btn btn-table" onclick="loadTable(78,'Bundesliga')">BUNDESLIGA</button>
-<button class="btn btn-table" onclick="loadTable(61,'Ligue 1')">LIGUE 1</button>
-<button class="btn btn-table" onclick="loadTable(239,'Colombia Primera A')">COLOMBIA</button>
-</div>
 </div>
 
 <div id="main">
-<div id="gamesWrap">
 <api-sports-widget data-type="config" data-key="98a19520b228fd8dcff8459b07f0d569" data-sport="football" data-theme="Diamond" data-show-logos="true" data-target-game="modal" data-timezone="Africa/Lagos"></api-sports-widget>
 <api-sports-widget data-type="games" data-show-toolbar="true" data-tab="all"></api-sports-widget>
 </div>
-<div id="standingsWrap">
-<button id="backBtn" onclick="showGames()">← BACK TO SCORES</button>
-<div id="tableTitle"></div>
-<div id="tableContent">Loading...</div>
-</div>
-</div>
 
 <div class="spacer"></div>
+
 <div class="bet-bar bottom">
 <a class="btn btn-1x" href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank">1XBET - BET NOW - BONUS 300%</a>
 </div>
 
 <script>
-async function loadTable(leagueId, leagueName){
-  document.getElementById('gamesWrap').style.display='none';
-  document.getElementById('standingsWrap').style.display='block';
-  document.getElementById('tableTitle').innerText = leagueName.toUpperCase() + ' - TABLE';
-  document.getElementById('tableContent').innerHTML = '<div style="color:#00ff66;text-align:center;padding:20px">Loading Table...</div>';
-  try{
-    const res = await fetch('/api/standings?league='+leagueId+'&season=2025');
-    const json = await res.json();
-    const standings = json.response[0]?.league?.standings[0];
-    if(!standings){ document.getElementById('tableContent').innerHTML = 'No table found.'; return; }
-    let html = '<table><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>Pts</th></tr>';
-    standings.forEach(team=>{
-      html += \`<tr><td class="pos">\${team.rank}</td><td><img src="\${team.team.logo}" style="width:18px;margin-right:6px">\${team.team.name}</td><td>\${team.all.played}</td><td>\${team.all.win}</td><td>\${team.all.draw}</td><td>\${team.all.lose}</td><td style="color:#00ff66;font-weight:900">\${team.points}</td></tr>\`;
-    });
-    html += '</table>';
-    document.getElementById('tableContent').innerHTML = html;
-  }catch(e){ document.getElementById('tableContent').innerHTML = 'Error: ' + e.message; }
-  window.scrollTo(0,0);
+function forceGreenBlack(root){
+  if(!root || root.querySelector('#diamond-force')) return;
+  const style = document.createElement('style');
+  style.id = 'diamond-force';
+  style.textContent = \`
+    :host{background:#000 !important}
+    *{background-color:transparent !important}
+    /* TOOLBAR CONTAINER */
+    [class*="toolbar"], [class*="Toolbar"], [class*="header"], [class*="filter"], [class*="tabs-container"]{
+      background:#000 !important;
+      background-color:#000 !important;
+      border:none !important;
+      border-bottom:2px solid #00ff66 !important;
+      padding:6px !important;
+    }
+    /* ALL, LIVE, FINISHED, SCHEDULED BUTTONS */
+    [class*="tab"], [class*="Tab"], button, [role="tab"], [class*="filter"] > div, [class*="toolbar"] > div > div{
+      background:#000 !important;
+      color:#00ff66 !important;
+      border:1px solid #00ff66 !important;
+      border-radius:8px !important;
+      font-weight:900 !important;
+      margin:2px !important;
+    }
+    /* ACTIVE TAB - ALL */
+    [class*="active"], [class*="Active"], [class*="selected"], [aria-selected="true"]{
+      background:#00ff66 !important;
+      background-color:#00ff66 !important;
+      color:#000 !important;
+      border:1px solid #00ff66 !important;
+    }
+    /* DATE AND SEARCH BAR */
+    [class*="date"], [class*="Date"], [class*="calendar"], [class*="Calendar"], [class*="toolbar"] div:nth-child(2){
+      background:#000 !important;
+      color:#00ff66 !important;
+      border-top:1px solid #111 !important;
+    }
+    /* DATE TEXT 29 OCT */
+    [class*="date"] span, [class*="Date"] span{
+      color:#00ff66 !important;
+    }
+    /* SEARCH ICON */
+    svg{fill:#00ff66 !important;color:#00ff66 !important}
+    /* LEAGUE HEADERS - Colombia : Primera A */
+    [class*="league"], [class*="League"], [class*="tournament"], [class*="country"]{
+      background:#000 !important;
+      color:#fff !important;
+      border-bottom:1px solid #1a1a1a !important;
+      border-top:2px solid #00ff66 !important;
+    }
+    /* MATCH ROWS */
+    [class*="game"], [class*="match"], [class*="Match"], [class*="row"], [class*="card"]{
+      background:#0a0a0a !important;
+      border-bottom:1px solid #151515 !important;
+    }
+    [class*="game"]:hover, [class*="match"]:hover{
+      background:#111 !important;
+    }
+    /* TEAM NAMES */
+    [class*="team"], [class*="Team"]{
+      color:#fff !important;
+    }
+    /* SCORES - GREEN */
+    [class*="score"], [class*="Score"], strong, b{
+      color:#00ff66 !important;
+      font-weight:900 !important;
+    }
+    /* FT - GREEN */
+    [class*="status"], [class*="Status"], [class*="time"], [class*="Time"]{
+      color:#00ff66 !important;
+      font-weight:900 !important;
+    }
+    /* PARENT WIDGET */
+    div{background:#000 !important}
+  \`;
+  root.appendChild(style);
+  
+  // FORCE INLINE STYLE FOR TOOLBAR BUTTONS
+  root.querySelectorAll('*').forEach(el=>{
+    const txt = (el.innerText||'').trim();
+    if(['ALL','LIVE','FINISHED','SCHEDULED'].includes(txt)){
+      el.style.setProperty('background','#000','important');
+      el.style.setProperty('color','#00ff66','important');
+      el.style.setProperty('border','1px solid #00ff66','important');
+      el.style.setProperty('border-radius','8px','important');
+      el.style.setProperty('font-weight','900','important');
+      el.style.setProperty('padding','8px 14px','important');
+      if(txt==='ALL'){
+        el.style.setProperty('background','#00ff66','important');
+        el.style.setProperty('color','#000','important');
+      }
+    }
+    if(txt.includes('OCT') || txt.includes('29')){
+      el.style.setProperty('color','#00ff66','important');
+      el.style.setProperty('background','#000','important');
+    }
+  });
 }
-function showGames(){
-  document.getElementById('standingsWrap').style.display='none';
-  document.getElementById('gamesWrap').style.display='block';
+
+function scan(){
+  document.querySelectorAll('*').forEach(el=>{
+    if(el.shadowRoot){
+      forceGreenBlack(el.shadowRoot);
+      // Deep shadow
+      el.shadowRoot.querySelectorAll('*').forEach(s=>{
+        if(s.shadowRoot) forceGreenBlack(s.shadowRoot);
+      });
+    }
+  });
 }
+
+setInterval(scan, 400);
+new MutationObserver(scan).observe(document.body,{childList:true,subtree:true});
+window.addEventListener('load', ()=>{ setTimeout(scan, 100); setTimeout(scan, 600); setTimeout(scan, 1500); });
 </script>
+
 </body></html>`;
-    return new Response(html, { headers: { "Content-Type": "text/html" }});
+    return new Response(html, { headers: { "Content-Type": "text/html", "Cache-Control":"no-cache" }});
   }
 }
