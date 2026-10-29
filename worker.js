@@ -28,16 +28,14 @@ export default {
     }
     const html = `<!DOCTYPE html><html><head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE LOGO FIX</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND LIVESCORE WHITE BLUE LOGO</title>
 <style>
 html,body{margin:0;background:#000;color:#fff;font-family:Arial}
 .top{display:flex;justify-content:center;padding:12px;background:#000;border-bottom:3px solid #00ff66;position:sticky;top:0;z-index:200}
 .logo{background:#00ff66;color:#000;padding:8px 28px;border-radius:8px;font-weight:900;font-style:italic}
 .bet{padding:10px}.bet a{background:#00ff66;color:#000;padding:12px;border-radius:12px;font-weight:900;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:10px}
-.logo1x{display:flex;align-items:center;gap:0;background:#fff;padding:4px 10px;border-radius:8px}
-.logo1x .one{color:#000;font-weight:900;font-size:18px}
-.logo1x .x{color:#1a7dff;font-weight:900;font-size:18px;background:#000;padding:0 3px;border-radius:3px;margin-left:2px}
-.logo1x .betxt{color:#000;font-weight:900;font-size:14px;margin-left:5px}
+/* WHITE AND BLUE LOGO - like you prefer */
+.logo1x-whiteblue{background:#fff;color:#0066ff;padding:5px 14px;border-radius:6px;font-weight:900;font-style:italic;font-size:18px;letter-spacing:0.5px;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
 .days{display:flex;gap:6px;padding:10px;background:#000;overflow-x:auto;border-bottom:2px solid #00ff66;position:sticky;top:54px;z-index:150}
 .dayBtn{padding:8px 12px;border-radius:14px;font-weight:900;font-size:11px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66;min-width:70px;text-align:center;line-height:12px}
 .day-inactive{background:#000;color:#00ff66}.day-active{background:#00ff66;color:#000}
@@ -58,7 +56,7 @@ html,body{margin:0;background:#000;color:#fff;font-family:Arial}
 .closeBtn{background:#00ff66;color:#000;border:none;padding:10px 18px;border-radius:8px;font-weight:900}
 .box{background:#0a0a0a;border:1px solid #222;border-radius:10px;padding:12px;margin:8px}
 .detailScore{font-size:40px;font-weight:900;color:#fff;text-align:center}
-.btnBet{background:#00ff66;color:#000;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;margin:8px}
+.btnBet{background:#0052ff;color:#fff;padding:12px;border-radius:10px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;margin:8px}
 .btnWatch{background:#111;color:#00ff66;border:1px solid #00ff66;padding:5px 10px;border-radius:6px;font-weight:900;font-size:11px}
 .btnSmall{background:#111;color:#00ff66;border:1px solid #00ff66;padding:6px 10px;border-radius:20px;font-weight:900;font-size:10px;margin:2px;cursor:pointer}
 .btnSmall.active{background:#00ff66;color:#000}
@@ -77,7 +75,7 @@ table.standings{width:100%;border-collapse:collapse;font-size:11px} table.standi
 </style>
 </head><body>
 <div class="top"><span class="logo">DIAMOND LIVESCORE 2026/27</span></div>
-<div class="bet"><a href="${MY_1XBET}" target="_blank"><span class="logo1x"><span class="one">1</span><span class="x">X</span><span class="betxt">BET</span></span><span> - BET NOW - BONUS 300%</span></a></div>
+<div class="bet"><a href="${MY_1XBET}" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span> - BET NOW - BONUS 300%</span></a></div>
 <div class="days" id="daysBar"></div>
 <div class="tabs">
 <div class="tab tab-active" onclick="setFilter('all')" id="filter-all">ALL GAMES</div>
@@ -89,7 +87,7 @@ table.standings{width:100%;border-collapse:collapse;font-size:11px} table.standi
 <div id="content"><div class="loading">Loading...</div></div>
 <div id="modal"><div id="modalTop"><span style="color:#00ff66;font-weight:900" id="modalTitle">MATCH</span><button class="closeBtn" onclick="closeModal()">X CLOSE</button></div><div class="detailTabs" id="detailTabs"></div><div id="modalContent"></div></div>
 <div class="spacer"></div>
-<div class="bottom"><a href="${MY_1XBET}" target="_blank"><span class="logo1x"><span class="one">1</span><span class="x">X</span><span class="betxt">BET</span></span><span> - BET NOW</span></a></div>
+<div class="bottom"><a href="${MY_1XBET}" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span> - BET NOW</span></a></div>
 <script>
 var ALL_MATCHES=[]; var TOP_LEAGUES=["serie a","premier league","laliga","la liga","bundesliga","ligue 1","eredivisie","champions league","europa league"];
 var CURRENT_DETAIL_DATA=null; var SELECTED_DATE=''; var SELECTED_FILTER='all';
@@ -145,7 +143,7 @@ function setFilter(f){
   var act=document.getElementById('filter-'+f); if(act) act.className='tab tab-active';
   render();
 }
-function refreshCurrent(){ var b=document.getElementById('filter-refresh'); b.textContent='LOADING...'; loadDate(SELECTED_DATE); setTimeout(function(){ b.textContent='REFRESH'; }, 1200); }
+function refreshCurrent(){ var b=document.getElementById('filter-refresh'); b.textContent='LOADING...'; loadDate(SELECTED_DATE); setTimeout(function(){ b.textContent='REFRESH'; }, 1000); }
 async function loadDate(dstr){
   if(!dstr) dstr=getDateObj(0).iso;
   SELECTED_DATE=dstr; buildDays();
@@ -153,38 +151,33 @@ async function loadDate(dstr){
   try{
     var res=await fetch('/api/highlightly?date='+dstr);
     var data=await res.json(); ALL_MATCHES=data.data||data.matches||[]; if(!Array.isArray(ALL_MATCHES)) ALL_MATCHES=[];
-    // AUTO FIX FOR EMPTY TODAY - go YESTERDAY automatically
-    if(ALL_MATCHES.length===0 && dstr===getDateObj(0).iso){
-      // Try yesterday that has games
-      var yest=getDateObj(-1).iso;
-      var res2=await fetch('/api/highlightly?date='+yest);
-      var data2=await res2.json(); var yestMatches=data2.data||data2.matches||[];
-      if(Array.isArray(yestMatches) && yestMatches.length>0){
-        SELECTED_DATE=yest; buildDays();
-        ALL_MATCHES=yestMatches;
-        document.getElementById('content').innerHTML='<div class="sectionTitle">Showing YESTERDAY '+yest+' - TODAY has no games yet</div>';
-        setTimeout(function(){ render(); }, 300);
-        return;
+    // AUTO SKIP EMPTY DAY - NO MESSAGE, just load next available
+    if(ALL_MATCHES.length===0){
+      // Try to find nearest day with games - check -1, -2, +1, -3, +2, etc.
+      var tryOffsets=[-1,-2,1,-3,2,3,-4];
+      for(var i=0;i<tryOffsets.length;i++){
+        var tryDate=getDateObj(tryOffsets[i]).iso;
+        if(tryDate===dstr) continue;
+        try{
+          var r=await fetch('/api/highlightly?date='+tryDate);
+          var d=await r.json(); var arr=d.data||d.matches||[];
+          if(Array.isArray(arr) && arr.length>0){
+            SELECTED_DATE=tryDate; buildDays(); ALL_MATCHES=arr;
+            break;
+          }
+        }catch(e){}
       }
     }
     render();
-  }catch(e){
-    document.getElementById('content').innerHTML='<div class="loading">Loading yesterday...</div>';
-    // Auto fallback
-    var yest=getDateObj(-1).iso; selectDay(yest);
-  }
+  }catch(e){ document.getElementById('content').innerHTML='<div class="loading">Loading...</div>'; }
 }
 function render(){
   var f=ALL_MATCHES;
   if(SELECTED_FILTER==='live') f=ALL_MATCHES.filter(function(m){ return getTimeInfo(m).isLive; });
   if(SELECTED_FILTER==='finished') f=ALL_MATCHES.filter(function(m){ return getTimeInfo(m).isFinished; });
   if(f.length===0){
-    // Instead of showing No matches with buttons, auto go yesterday
-    if(SELECTED_DATE===getDateObj(0).iso){
-      selectDay(getDateObj(-1).iso);
-      return;
-    }
-    document.getElementById('content').innerHTML='<div class="loading">No games on '+SELECTED_DATE+'<br>Switching...</div>';
+    // No message - just show loading and auto try
+    document.getElementById('content').innerHTML='<div class="loading">Loading games...</div>';
     return;
   }
   var top={}, other={};
@@ -193,8 +186,8 @@ function render(){
     var key=(cn+"|"+ln).toUpperCase(); var isTop=false; for(var i=0;i<TOP_LEAGUES.length;i++){ if(ln.toLowerCase().indexOf(TOP_LEAGUES[i])>-1){ isTop=true; break; } }
     var tgt=isTop?top:other; if(!tgt[key]) tgt[key]={country:cn, league:ln, games:[]}; tgt[key].games.push(m);
   });
-  var html=''; if(Object.keys(top).length>0){ html+='<div class="sectionTitle">TOP LEAGUES - '+SELECTED_DATE+' - '+f.length+' games - '+SELECTED_FILTER.toUpperCase()+'</div>'+renderGroups(top); }
-  if(Object.keys(other).length>0){ html+='<div class="sectionTitle">OTHER LEAGUES - '+SELECTED_DATE+'</div>'+renderGroups(other); }
+  var html=''; if(Object.keys(top).length>0){ html+='<div class="sectionTitle">TOP LEAGUES - '+SELECTED_DATE+' - '+f.length+' games</div>'+renderGroups(top); }
+  if(Object.keys(other).length>0){ html+='<div class="sectionTitle">OTHER LEAGUES</div>'+renderGroups(other); }
   document.getElementById('content').innerHTML=html;
 }
 function renderGroups(g){
@@ -214,7 +207,7 @@ async function loadStandings(){
     {pos:1, team:'Inter', MP:9, W:8, D:1, L:0, G:'25:10', PTS:25},{pos:2, team:'Lazio', MP:9, W:8, D:1, L:0, G:'22:7', PTS:25},{pos:3, team:'AS Roma', MP:9, W:6, D:3, L:0, G:'23:8', PTS:21},{pos:4, team:'Como', MP:9, W:6, D:2, L:1, G:'17:8', PTS:20},{pos:5, team:'AC Milan', MP:9, W:5, D:3, L:1, G:'18:11', PTS:18},{pos:6, team:'Frosinone', MP:8, W:4, D:2, L:2, G:'17:13', PTS:14},{pos:7, team:'Napoli', MP:9, W:4, D:2, L:3, G:'17:11', PTS:14},{pos:8, team:'Juventus', MP:9, W:4, D:2, L:3, G:'11:10', PTS:14},{pos:9, team:'Torino', MP:9, W:4, D:1, L:4, G:'14:14', PTS:13},{pos:10, team:'Cagliari', MP:9, W:4, D:1, L:4, G:'8:13', PTS:13},{pos:11, team:'Bologna', MP:9, W:3, D:2, L:4, G:'12:12', PTS:11},{pos:12, team:'Atalanta', MP:8, W:3, D:1, L:4, G:'14:15', PTS:10},{pos:13, team:'Genoa', MP:9, W:3, D:1, L:5, G:'8:13', PTS:10},{pos:14, team:'Lecce', MP:8, W:3, D:0, L:5, G:'9:14', PTS:9},{pos:15, team:'Sassuolo', MP:9, W:2, D:2, L:5, G:'14:22', PTS:8},{pos:16, team:'Monza', MP:9, W:2, D:1, L:6, G:'16:22', PTS:7},{pos:17, team:'Udinese', MP:9, W:1, D:2, L:6, G:'9:18', PTS:5},{pos:18, team:'Parma', MP:9, W:1, D:2, L:6, G:'5:15', PTS:5},{pos:19, team:'Fiorentina', MP:8, W:1, D:1, L:6, G:'9:19', PTS:4},{pos:20, team:'Venezia', MP:9, W:1, D:0, L:8, G:'6:19', PTS:3}
   ];
   document.querySelectorAll('[id^="filter-"]').forEach(function(el){ el.className='tab tab-inactive'; }); document.getElementById('filter-table').className='tab tab-active';
-  var html='<div class="sectionTitle">Italy Serie A - Flashscore Exact - 2026/27</div><div class="box" style="padding:0;overflow-x:auto"><table class="standings"><tr><th>#</th><th style="text-align:left">Team</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>G</th><th>PTS</th></tr>';
+  var html='<div class="sectionTitle">Italy Serie A - 2026/27</div><div class="box" style="padding:0;overflow-x:auto"><table class="standings"><tr><th>#</th><th style="text-align:left">Team</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>G</th><th>PTS</th></tr>';
   serieA_Real.forEach(function(row){ var bg = row.pos<=4 ? 'style="background:#0a1a0a"' : row.pos>=18 ? 'style="background:#1a0a0a"' : ''; html+='<tr '+bg+'><td style="color:#00ff66;font-weight:900">'+row.pos+'.</td><td class="teamCell">'+row.team+'</td><td>'+row.MP+'</td><td>'+row.W+'</td><td>'+row.D+'</td><td>'+row.L+'</td><td>'+row.G+'</td><td style="color:#00ff66;font-weight:900">'+row.PTS+'</td></tr>'; });
   html+='</table></div><div class="box"><button class="btnSmall active" onclick="selectDay(SELECTED_DATE); setFilter(\\'all\\')">BACK TO '+SELECTED_DATE+'</button></div>';
   document.getElementById('content').innerHTML=html;
@@ -279,7 +272,7 @@ function showDetailTab(tab){
     html+='</div>';
   }
   if(tab==='stats'){ html+='<div class="box"><b style="color:#00ff66">STATS</b></div><div class="box">Stats after kickoff</div>'; }
-  html+='<a href="${MY_1XBET}" target="_blank" class="btnBet"><span class="logo1x"><span class="one">1</span><span class="x">X</span><span class="betxt">BET</span></span><span>BET AGAIN</span></a>';
+  html+='<a href="${MY_1XBET}" target="_blank" class="btnBet"><span class="logo1x-whiteblue">1XBET</span><span>BET NOW - 1x_6045135 - 300% BONUS</span></a>';
   document.getElementById('modalContent').innerHTML=html;
 }
 function closeModal(){ document.getElementById('modal').style.display='none'; }
