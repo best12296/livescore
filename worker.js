@@ -14,7 +14,6 @@ export default {
       const r = await fetch(`https://soccer.highlightly.net/highlights?matchId=${id}`, { headers: { "x-rapidapi-key": HIGHLIGHTLY_KEY } });
       return new Response(await r.text(), { headers: {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
     }
-
     const html = `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DIAMOND LIVESCORE</title>
@@ -35,13 +34,13 @@ html,body{margin:0;background:#000;color:#fff;font-family:Arial}
 .league-name{color:#00ff66;font-weight:900;font-size:12px;margin-left:8px}
 .league-count{color:#00ff66;font-weight:900;font-size:11px;background:#000;border:1px solid #00ff66;padding:2px 8px;border-radius:12px}
 .match{display:flex;justify-content:space-between;align-items:center;padding:11px 10px;background:#0a0a0a;border-bottom:1px solid #1a1a1a}
-.time-box{width:58px;text-align:center}
+.time-box{width:62px;text-align:center}
 .time-green{color:#00ff66;font-weight:900;font-size:13px}
 .time-live{color:#ff3b30;font-weight:900;font-size:13px;animation:blink 1s infinite}
 .time-ft{color:#fff;font-weight:900;font-size:13px}
 @keyframes blink{0%{opacity:1}50%{opacity:0.4}100%{opacity:1}}
 .team{font-size:13px;line-height:16px}
-.score{color:#fff;font-weight:900;font-size:14px;text-align:center;min-width:32px;line-height:16px}
+.score{color:#00ff66;font-weight:900;font-size:15px;text-align:center;min-width:36px;line-height:18px}
 .bottom{position:fixed;bottom:0;left:0;right:0;padding:10px;background:#000;border-top:2.5px solid #00ff66;z-index:9999}
 .bottom a{background:#00ff66;color:#000;padding:13px;border-radius:10px;font-weight:900;text-align:center;display:block;text-decoration:none}
 .spacer{height:90px}
@@ -80,28 +79,48 @@ function getDateStr(offset){
   return lagos.getFullYear() + "-" + String(lagos.getMonth()+1).padStart(2,'0') + "-" + String(lagos.getDate()).padStart(2,'0');
 }
 
+function getScores(m){
+  // TRY EVERY POSSIBLE SCORE FIELD FROM HIGHLIGHTLY
+  let h = m.homeScore ?? m.awayScore ? m.homeScore : undefined;
+  let a = m.awayScore;
+
+  if(h===undefined) h = m.score?.home ?? m.score?.homeTeam ?? m.result?.home ?? m.results?.home ?? m.goals?.home ?? m.ft?.home ?? m.fullTime?.home;
+  if(a===undefined) a = m.score?.away ?? m.score?.awayTeam ?? m.result?.away ?? m.results?.away ?? m.goals?.away ?? m.ft?.away ?? m.fullTime?.away;
+
+  if(h===undefined && typeof m.score === 'string' && m.score.includes('-')){
+    const parts = m.score.split('-'); h = parts[0].trim(); a = parts[1].trim();
+  }
+  if(h===undefined && m.result){
+    if(typeof m.result === 'string' && m.result.includes('-')){ const p=m.result.split('-'); h=p[0]; a=p[1]; }
+  }
+  // final fallback from score object like {home:1, away:2} as numbers
+  if(h===undefined) h = m.homeGoals ?? m.home_goals;
+  if(a===undefined) a = m.awayGoals ?? m.away_goals;
+
+  return { h: (h!==undefined && h!==null && h!=="") ? h : null, a: (a!==undefined && a!==null && a!=="") ? a : null };
+}
+
 function getMatchTime(m){
   let s = m.date || m.startTime || m.kickoff || "";
-  if(!s) return { main:"-", isLive:false, isFinished:false, ts:0 };
+  const status = (m.status||m.matchStatus||"").toUpperCase();
+  const isLive = status.includes("LIVE") || status.includes("1H") || status.includes("2H") || status.includes("HT");
+  const isFinished = status.includes("FT") || status.includes("FINISHED") || status.includes("ENDED") || status==="FT" || m.finished || m.isFinished;
+  if(!s) {
+    return { main: isFinished ? "FT" : (isLive ? "LIVE" : "-"), isLive, isFinished, ts:0 };
+  }
   try{
     let d = new Date(s);
-    if(isNaN(d.getTime())) return { main:s.slice(0,5), isLive:false, isFinished:false, ts:0 };
+    if(isNaN(d.getTime())) return { main: isFinished ? "FT" : (isLive ? "LIVE" : s.slice(0,5)), isLive, isFinished, ts:0 };
     const time = d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Lagos'});
-    const status = (m.status||m.matchStatus||"").toUpperCase();
-    const isLive = status.includes("LIVE") || status.includes("1H") || status.includes("2H") || status.includes("HT");
-    const isFinished = status.includes("FT") || status.includes("FINISHED") || status.includes("ENDED") || status==="FT";
     if(isLive) return { main:"LIVE", isLive:true, isFinished:false, ts:d.getTime() };
     if(isFinished) return { main:"FT", isLive:false, isFinished:true, ts:d.getTime() };
     return { main:time, isLive:false, isFinished:false, ts:d.getTime() };
-  }catch(e){ return { main:"-", isLive:false, isFinished:false, ts:0 } }
+  }catch(e){ return { main: isFinished ? "FT" : "-", isLive, isFinished, ts:0 } }
 }
 
 function setTab(tab){
   CURRENT_TAB=tab;
-  document.querySelectorAll('[id^="tab-"]').forEach(el=>{
-    if(el.id==='tab-refresh') return;
-    el.className='tab tab-inactive';
-  });
+  document.querySelectorAll('[id^="tab-"]').forEach(el=>{ if(el.id==='tab-refresh') return; el.className='tab tab-inactive'; });
   document.getElementById('tab-'+tab).className='tab tab-active';
   if(tab==='yesterday') loadDate(getDateStr(-1));
   else if(tab==='today') loadDate(getDateStr(0));
@@ -109,8 +128,7 @@ function setTab(tab){
 }
 
 function refreshCurrent(){
-  const btn=document.getElementById('tab-refresh');
-  btn.textContent='LOADING...';
+  const btn=document.getElementById('tab-refresh'); btn.textContent='LOADING...';
   if(CURRENT_TAB==='yesterday') loadDate(getDateStr(-1));
   else if(CURRENT_TAB==='today') loadDate(getDateStr(0));
   else { renderFiltered(); btn.textContent='REFRESH'; }
@@ -123,6 +141,7 @@ async function loadDate(dateStr){
     const data=await res.json();
     ALL_MATCHES=data.data||data.matches||[];
     if(!Array.isArray(ALL_MATCHES)) ALL_MATCHES=[];
+    console.log('Highlightly sample', ALL_MATCHES[0]);
     renderFiltered();
   }catch(e){
     document.getElementById('content').innerHTML='<div class="loading">Error '+e.message+'</div>';
@@ -147,24 +166,19 @@ function renderFiltered(){
     const key=(countryName+"|"+leagueName).toUpperCase();
     const isTop=TOP_LEAGUES.some(k=> leagueName.toLowerCase().includes(k));
     const target=isTop?topGroups:otherGroups;
-    if(!target[key]) target[key]={country:countryName, league:leagueName, games:[], isTop};
+    if(!target[key]) target[key]={country:countryName, league:leagueName, games:[]};
     target[key].games.push(m);
   });
 
   let html='';
-
-  // TOP 9 ALWAYS UP ANYTIME DEY GET MATCH - as you ask
   if(Object.keys(topGroups).length>0){
     html+='<div class="sectionTitle">TOP 9 LEAGUES - Always On Top</div>';
     html+=renderGroupHtml(topGroups);
   }
-
-  // OTHER LEAGUES DOWN
   if(Object.keys(otherGroups).length>0){
     html+='<div class="sectionTitle">OTHER LEAGUES</div>';
     html+=renderGroupHtml(otherGroups);
   }
-
   document.getElementById('content').innerHTML=html;
 }
 
@@ -177,24 +191,28 @@ function renderGroupHtml(groups){
       const home=match.homeTeam?.name||match.home?.name||"Home";
       const away=match.awayTeam?.name||match.away?.name||"Away";
       const t=getMatchTime(match);
-      // Show results: if score exists show, else -
-      let hs=match.homeScore; let as=match.awayScore;
-      if(hs===undefined) hs=match.score?.home;
-      if(as===undefined) as=match.score?.away;
-      // sometimes Highlightly uses goals
-      if(hs===undefined) hs=match.goals?.home;
-      if(as===undefined) as=match.goals?.away;
+      const sc=getScores(match);
       let scoreHtml='';
-      if(t.isFinished || t.isLive || (hs!==undefined && hs!==null && hs!=="-" && hs!=="") ){
-        scoreHtml=\`\${hs??0}<br>\${as??0}\`;
+      if(sc.h!==null && sc.a!==null){
+        scoreHtml=\`\${sc.h}<br>\${sc.a}\`;
+      } else if(t.isFinished || CURRENT_TAB==='yesterday' || CURRENT_TAB==='finished'){
+        // For yesterday/finished if no score parsed, show FT but try raw
+        const raw = match.score || match.result || "";
+        scoreHtml= raw ? String(raw).replace('-','<br>') : '<span style="color:#fff">\${t.main}</span>';
+        // Actually show FT if still no score
+        if(!raw) scoreHtml='FT<br><span style="font-size:11px">\${t.main==="FT"?"":t.main}</span>';
       } else {
         scoreHtml='<span style="color:#00ff66">-</span><br><span style="color:#00ff66">-</span>';
       }
       let timeClass='time-green';
       if(t.isLive) timeClass='time-live';
-      if(t.isFinished) timeClass='time-ft';
+      if(t.isFinished || CURRENT_TAB==='yesterday') timeClass='time-ft';
+      
+      let timeDisplay = t.main;
+      if(CURRENT_TAB==='yesterday' || CURRENT_TAB==='finished' || t.isFinished) timeDisplay='FT';
+
       h+=\`<div class="match" onclick="openMatch('\${match.id}')">
-        <div class="time-box"><div class="\${timeClass}">\${t.main}</div></div>
+        <div class="time-box"><div class="\${timeClass}">\${timeDisplay}</div></div>
         <div style="flex:1;margin-left:10px">
           <div class="team">\${home}</div>
           <div class="team" style="margin-top:4px;color:#aaa">\${away}</div>
