@@ -1,41 +1,27 @@
-const API_KEY = "98a19520b228fd8dcff8459b07f0d569";
-const TOP_IDS = {2:1,3:2,848:3,39:4,140:5,61:6,78:7,135:8,88:9};
-
 export default {
-  async fetch(request){
+  async fetch(request, env){
+    const HIGHLIGHTLY_KEY = env.HIGHLIGHTLY_KEY || "afad9a68-c248-429b-8aa7-b7626bb56744";
     const url = new URL(request.url);
-    if(url.pathname === "/api/top"){
+
+    if(url.pathname === "/api/highlightly"){
       const date = url.searchParams.get("date") || new Date().toISOString().split('T')[0];
-      // Use Lagos timezone so 18:30 matches no go disappear
-      const [today, tomorrow] = await Promise.all([
-        fetch(`https://v3.football.api-sports.io/fixtures?date=${date}&timezone=Africa/Lagos`, { headers: { "x-apisports-key": API_KEY }}).then(r=>r.json()),
-        fetch(`https://v3.football.api-sports.io/fixtures?date=${date}&timezone=Africa/Lagos`, { headers: { "x-apisports-key": API_KEY }}).then(r=>r.json())
-      ]);
-      // Merge and filter only Top 9
-      const all = [...(today.response||[]), ...(tomorrow.response||[])];
-      // Remove duplicate fixture ids
-      const seen = new Set(); const uniq=[];
-      for(const f of all){ if(!seen.has(f.fixture.id)){ seen.add(f.fixture.id); uniq.push(f);} }
-      const filtered = uniq.filter(f=> TOP_IDS[f.league.id]);
-      // Sort by league order
-      filtered.sort((a,b)=> TOP_IDS[a.league.id] - TOP_IDS[b.league.id]);
-      return new Response(JSON.stringify({response:filtered, debugDate:date}), { headers: {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
+      const r = await fetch(`https://soccer.highlightly.net/matches?date=${date}`, {
+        headers: { "x-rapidapi-key": HIGHLIGHTLY_KEY }
+      });
+      return new Response(await r.text(), { headers: {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
     }
-    if(url.pathname === "/api/detail"){
+
+    if(url.pathname === "/api/highlights"){
       const id = url.searchParams.get("id");
-      const [f, stats, events, lineups] = await Promise.all([
-        fetch(`https://v3.football.api-sports.io/fixtures?id=${id}`, { headers: { "x-apisports-key": API_KEY }}).then(r=>r.json()),
-        fetch(`https://v3.football.api-sports.io/fixtures/statistics?fixture=${id}`, { headers: { "x-apisports-key": API_KEY }}).then(r=>r.json()),
-        fetch(`https://v3.football.api-sports.io/fixtures/events?fixture=${id}`, { headers: { "x-apisports-key": API_KEY }}).then(r=>r.json()),
-        fetch(`https://v3.football.api-sports.io/fixtures/lineups?fixture=${id}`, { headers: { "x-apisports-key": API_KEY }}).then(r=>r.json()),
-      ]);
-      return new Response(JSON.stringify({fixture:f.response[0], stats:stats.response, events:events.response, lineups:lineups.response}), { headers: {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
+      const r = await fetch(`https://soccer.highlightly.net/highlights?matchId=${id}`, {
+        headers: { "x-rapidapi-key": HIGHLIGHTLY_KEY }
+      });
+      return new Response(await r.text(), { headers: {"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
     }
 
     const html = `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DIAMOND LIVESCORE</title>
-<script type="module" src="https://widgets.api-sports.io/3.1.0/widgets.js"></script>
+<title>DIAMOND LIVESCORE - HIGHLIGHTLY ONLY</title>
 <style>
 html,body{margin:0;background:#000;color:#fff;font-family:Arial}
 .top{background:#000;display:flex;justify-content:center;padding:12px;border-bottom:2px solid #00ff66;position:sticky;top:0;z-index:100}
@@ -46,7 +32,6 @@ html,body{margin:0;background:#000;color:#fff;font-family:Arial}
 .league{background:#111;color:#00ff66;padding:10px 8px;font-weight:900;font-size:13px;border-top:2px solid #00ff66;display:flex;justify-content:space-between}
 .match{display:flex;justify-content:space-between;align-items:center;padding:10px 8px;background:#0a0a0a;border-bottom:1px solid #151515;cursor:pointer}
 .team{display:flex;align-items:center;gap:6px;font-size:13px}
-.team img{width:18px}
 .score{color:#00ff66;font-weight:900;text-align:right}
 .status{color:#00ff66;font-size:11px;font-weight:900;width:42px}
 .bottom{position:fixed;bottom:0;left:0;right:0;padding:10px;background:#000;border-top:2px solid #00ff66;z-index:9999}
@@ -57,92 +42,87 @@ html,body{margin:0;background:#000;color:#fff;font-family:Arial}
 #modalTop{background:#000;border-bottom:2px solid #00ff66;padding:10px;position:sticky;top:0;display:flex;justify-content:space-between;align-items:center}
 .closeBtn{background:#00ff66;color:#000;border:none;padding:10px 18px;border-radius:8px;font-weight:900}
 .box{background:#0a0a0a;border:1px solid #151515;border-radius:10px;padding:10px;margin:8px}
+video{width:100%;border-radius:10px}
 </style>
 </head><body>
-
 <div class="top"><span class="logo">DIAMOND LIVESCORE</span></div>
 <div class="bet"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank">1XBET - BET NOW - BONUS 300%</a></div>
-
-<api-sports-widget data-type="config" data-key="98a19520b228fd8dcff8459b07f0d569" data-sport="football" data-theme="grey" data-show-logos="true" data-target-game="modal" data-target-team="modal" data-target-player="modal" data-timezone="Africa/Lagos" data-refresh="30"></api-sports-widget>
-
 <div id="main">
-<div class="sectionTitle">⭐ TOP 9 LEAGUES - ALWAYS ON TOP (Today - Serie A go show here)</div>
-<div id="topLeagues"><div class="loading">Loading Top 9 - checking Serie A Frosinone vs Lecce...</div></div>
-
-<div class="sectionTitle">OTHER LEAGUES - Official Widget</div>
-<api-sports-widget id="otherWidget" data-type="games" data-show-toolbar="true" data-tab="all"></api-sports-widget>
+<div class="sectionTitle">⭐ TOP 9 LEAGUES - Today (Serie A Frosinone vs Lecce go show here)</div>
+<div id="topLeagues"><div class="loading">Loading Top 9 from Highlightly...</div></div>
+<div class="sectionTitle">OTHER LEAGUES</div>
+<div id="otherLeagues"><div class="loading">Loading...</div></div>
+<div class="sectionTitle">🔥 VIDEO HIGHLIGHTS</div>
+<div id="highlights"><div class="loading">Loading highlights...</div></div>
 </div>
-
-<div id="modal"><div id="modalTop"><span style="color:#00ff66;font-weight:900">MATCH DETAILS</span><button class="closeBtn" onclick="closeModal()">X CLOSE</button></div><div id="modalContent"></div></div>
-
+<div id="modal"><div id="modalTop"><span style="color:#00ff66;font-weight:900">MATCH + VIDEO</span><button class="closeBtn" onclick="closeModal()">X CLOSE</button></div><div id="modalContent"></div></div>
 <div class="spacer"></div>
-<div class="bottom"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank">1XBET - BET NOW - BONUS 300%</a></div>
-
+<div class="bottom"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank">1XBET - BET NOW</a></div>
 <script>
-const TOP = {2:1,3:2,848:3,39:4,140:5,61:6,78:7,135:8,88:9};
-function formatDate(d){ const tz=new Date().toLocaleString('en-GB',{timeZone:'Africa/Lagos'}); const parts=tz.split(',')[0].split('/'); return \`\${parts[2]}-\${parts[1].padStart(2,'0')}-\${parts[0].padStart(2,'0')}\`; }
-
-async function loadTop(){
-  const date = formatDate(new Date());
-  const res = await fetch('/api/top?date='+date);
-  const json = await res.json();
-  const fixtures = json.response||[];
-  
-  if(fixtures.length===0){
-    document.getElementById('topLeagues').innerHTML='<div class="loading">No Top 9 yet for '+date+'. But Flashscore show Serie A today, make we check API... If API no get Serie A, na API coverage issue, but code don ready.</div>';
+const TOP_KEYWORDS = ["champions league","europa league","conference league","premier league","laliga","la liga","ligue 1","bundesliga","serie a","eredivisie"];
+function formatDate(){const tz=new Date().toLocaleString('en-GB',{timeZone:'Africa/Lagos'});const p=tz.split(',')[0].split('/');return \`\${p[2]}-\${p[1].padStart(2,'0')}-\${p[0].padStart(2,'0')}\`;}
+async function loadAll(){
+  const date=formatDate();
+  const res=await fetch('/api/highlightly?date='+date);
+  const data=await res.json();
+  const matches=data.data||data.matches||data.response||data||[];
+  if(!Array.isArray(matches) || matches.length===0){
+    document.getElementById('topLeagues').innerHTML='<div class="loading">No matches today. Response: '+(JSON.stringify(data).slice(0,300))+'</div>';
     return;
   }
-  
-  const groups={};
-  fixtures.forEach(f=>{
-    if(!groups[f.league.id]) groups[f.league.id]={league:f.league,games:[], order:TOP[f.league.id]};
-    groups[f.league.id].games.push(f);
+  const top=[]; const other=[];
+  matches.forEach(m=>{
+    const leagueName=(m.league?.name||m.competition?.name||'').toLowerCase();
+    const isTop=TOP_KEYWORDS.some(k=>leagueName.includes(k));
+    if(isTop) top.push(m); else other.push(m);
   });
-  const sorted = Object.values(groups).sort((a,b)=>a.order-b.order);
-  
-  let html='';
-  sorted.forEach(g=>{
-    html+=\`<div class="league"><span>\${g.league.country.toUpperCase()} : \${g.league.name}</span><span>\${g.games.length}</span></div>\`;
-    g.games.forEach(m=>{
-      const st=m.fixture.status.short; 
-      const time = new Date(m.fixture.date).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit', timeZone:'Africa/Lagos'});
-      const status = st==='FT'?'FT':st==='NS'?time:st;
-      html+=\`<div class="match" onclick="openMatch(\${m.fixture.id})"><div style="flex:1"><div class="team"><span class="status">\${status}</span><img src="\${m.teams.home.logo}"><span>\${m.teams.home.name}</span></div><div class="team"><span class="status"></span><img src="\${m.teams.away.logo}"><span>\${m.teams.away.name}</span></div></div><div class="score">\${m.goals.home??'-'}<br>\${m.goals.away??'-'}</div></div>\`;
+  // TOP
+  let html=''; const groups={};
+  top.forEach(m=>{ const ln=m.league?.name||m.competition?.name||'Top League'; if(!groups[ln])groups[ln]=[]; groups[ln].push(m); });
+  Object.entries(groups).forEach(([ln,games])=>{
+    html+=\`<div class="league"><span>\${ln.toUpperCase()}</span><span>\${games.length}</span></div>\`;
+    games.forEach(match=>{
+      const home=match.homeTeam?.name||match.home?.name||'Home'; const away=match.awayTeam?.name||match.away?.name||'Away';
+      const hs=match.homeScore??'-'; const as=match.awayScore??'-'; const time=match.time||match.status||'NS';
+      html+=\`<div class="match" onclick="openMatch('\${match.id}')"><div style="flex:1"><div class="team"><span class="status">\${time}</span><span>\${home}</span></div><div class="team"><span class="status"></span><span>\${away}</span></div></div><div class="score">\${hs}<br>\${as}</div></div>\`;
     });
   });
-  document.getElementById('topLeagues').innerHTML=html;
+  document.getElementById('topLeagues').innerHTML=html||'<div class="loading">No Top 9 today - Flashscore show Serie A 18:30 Frosinone-Lecce go appear later</div>';
+  // OTHER
+  let html2=''; const groups2={};
+  other.forEach(m=>{ const ln=m.league?.name||m.competition?.name||'League'; if(!groups2[ln])groups2[ln]=[]; groups2[ln].push(m); });
+  Object.entries(groups2).forEach(([ln,games])=>{
+    html2+=\`<div class="league"><span>\${ln.toUpperCase()}</span><span>\${games.length}</span></div>\`;
+    games.forEach(match=>{
+      const home=match.homeTeam?.name||'Home'; const away=match.awayTeam?.name||'Away'; const hs=match.homeScore??'-'; const as=match.awayScore??'-'; const time=match.time||'NS';
+      html2+=\`<div class="match" onclick="openMatch('\${match.id}')"><div style="flex:1"><div class="team"><span class="status">\${time}</span><span>\${home}</span></div><div class="team"><span class="status"></span><span>\${away}</span></div></div><div class="score">\${hs}<br>\${as}</div></div>\`;
+    });
+  });
+  document.getElementById('otherLeagues').innerHTML=html2||'<div class="loading">No other leagues today.</div>';
+  // HIGHLIGHTS
+  let hHtml=''; matches.slice(0,10).forEach(m=>{
+    const home=m.homeTeam?.name||'Home'; const away=m.awayTeam?.name||'Away';
+    hHtml+=\`<div class="box"><b>\${home} vs \${away}</b><br><button onclick="openMatch('\${m.id}')" style="background:#00ff66;color:#000;border:none;padding:8px 12px;border-radius:6px;font-weight:900;margin-top:6px">▶ WATCH HIGHLIGHTS</button></div>\`;
+  });
+  document.getElementById('highlights').innerHTML=hHtml;
 }
-
 async function openMatch(id){
   document.getElementById('modal').style.display='block';
-  document.getElementById('modalContent').innerHTML='<div class="loading">Loading...</div>';
-  const res=await fetch('/api/detail?id='+id); const d=await res.json(); const f=d.fixture;
-  if(!f){ document.getElementById('modalContent').innerHTML='No data'; return; }
-  let eventsHtml=''; (d.events||[]).forEach(ev=>{
-    const icon=ev.type==='Goal'?'⚽':ev.type==='Card'?(ev.detail.includes('Yellow')?'🟨':'🟥'):'🔄';
-    eventsHtml+=\`<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #111;font-size:13px"><span>\${ev.time.elapsed}'</span><span>\${icon}</span><span>\${ev.player.name} - \${ev.detail}</span></div>\`;
-  });
-  if(!eventsHtml) eventsHtml='<div style="padding:10px;color:#888">No events yet - match never start. Kickoff: Frosinone vs Lecce 18:30</div>';
-  document.getElementById('modalContent').innerHTML=\`
-    <div class="box" style="text-align:center;color:#00ff66;font-weight:900">\${f.league.country} : \${f.league.name}</div>
-    <div class="box"><div style="display:flex;justify-content:space-between;align-items:center"><div style="text-align:center"><img src="\${f.teams.home.logo}" style="width:48px"><br><b>\${f.teams.home.name}</b></div><div style="text-align:center;font-size:28px;color:#00ff66;font-weight:900">\${f.goals.home??0} - \${f.goals.away??0}</div><div style="text-align:center"><img src="\${f.teams.away.logo}" style="width:48px"><br><b>\${f.teams.away.name}</b></div></div></div>
-    <div class="box"><div style="color:#00ff66;font-weight:900;margin-bottom:8px">EVENTS</div>\${eventsHtml}</div>
-  \`;
-}
-function closeModal(){ document.getElementById('modal').style.display='none'; }
-
-function paint(){
-  document.querySelectorAll('api-sports-widget').forEach(el=>{
-    if(el.shadowRoot && !el.shadowRoot.querySelector('#fix')){
-      const s=document.createElement('style');
-      s.id='fix';
-      s.textContent='[class*="toolbar"]{background:#000 !important;border-bottom:2px solid #00ff66 !important} [class*="tab"]{background:#000 !important;color:#00ff66 !important;border:1px solid #00ff66 !important} [class*="active"]{background:#00ff66 !important;color:#000 !important} [class*="game"]{background:#0a0a0a !important} [class*="score"]{color:#00ff66 !important}';
-      el.shadowRoot.appendChild(s);
+  document.getElementById('modalContent').innerHTML='<div class="loading">Loading highlights...</div>';
+  try{
+    const res=await fetch('/api/highlights?id='+id); const data=await res.json();
+    const vids=data.data||data.highlights||data||[];
+    let html='<div class="box">Match ID: '+id+'</div>';
+    if(Array.isArray(vids) && vids.length>0){
+      vids.forEach(v=>{ const url=v.url||v.videoUrl||''; if(url) html+=\`<div class="box"><video controls src="\${url}"></video><br><b>\${v.title||'Highlight'}</b></div>\`; });
+    } else {
+      html+='<div class="box">No video yet. Frosinone vs Lecce 18:30 never finish, video go appear after.</div>';
     }
-  });
+    document.getElementById('modalContent').innerHTML=html;
+  }catch(e){ document.getElementById('modalContent').innerHTML='Error: '+e.message; }
 }
-setInterval(paint,800);
-loadTop();
+function closeModal(){document.getElementById('modal').style.display='none';}
+loadAll();
 </script>
 </body></html>`;
     return new Response(html, { headers: {"Content-Type":"text/html","Cache-Control":"no-cache"} });
