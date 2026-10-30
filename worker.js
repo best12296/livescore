@@ -46,8 +46,6 @@ if(url.pathname==="/api/details"){
  let base = cfg.base==="hockey" ? BASE_HOCKEY : BASE_SPORT;
  return await cachedFetch(`${base}/${cfg.path}/matches/${id}`,120);
 }
-
-// AUTO EVERYTHING STATS - TRY 5 ENDPOINTS BY ITSELF
 if(url.pathname==="/api/stats"){
  let sport = url.searchParams.get("sport") || "football";
  let id = url.searchParams.get("id") || "";
@@ -67,7 +65,6 @@ if(url.pathname==="/api/stats"){
     let txt = await r.text();
     let j = JSON.parse(txt);
     let d = j.data || j || {};
-    // Check if has real data
     let str = JSON.stringify(d);
     if(str.length>30 && str !== "{}" && str !== "[]" && !str.includes('"data":[]')){
       return new Response(txt, {headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Cache-Control":"public, max-age=120"}});
@@ -77,8 +74,6 @@ if(url.pathname==="/api/stats"){
  }
  return new Response(JSON.stringify({data:{}}), {headers:{"Content-Type":"application/json"}});
 }
-
-// AUTO EVERYTHING TABLE - TRY ALL SEASONS BY ITSELF
 if(url.pathname==="/api/standings"){
  let sport = url.searchParams.get("sport") || "football";
  let id = url.searchParams.get("id") || "";
@@ -87,7 +82,6 @@ if(url.pathname==="/api/standings"){
  let ck = new Request(`${base}/${cfg.path}/standings?leagueId=${id}`,{headers:H});
  let c = await cache.match(ck);
  if(c) return c;
- // AUTO TRY: no season, then 2026,2025,2024,2023
  let tries = [
   `${base}/${cfg.path}/standings?leagueId=${id}`,
   `${base}/${cfg.path}/standings?leagueId=${id}&season=2026`,
@@ -139,7 +133,6 @@ var res=await fetch('/api/details?sport='+SELECTED_SPORT+'&id='+id+'&t='+Date.no
 var h=m.homeTeam&&m.homeTeam.name||"Home";var a=m.awayTeam&&m.awayTeam.name||"Away";var sc=getScores(m);var ft=sc.h!=null?sc.h+' - '+sc.a:'0 - 0';
 document.getElementById('modalTitle').textContent=h+' vs '+a+' - '+SELECTED_SPORT.toUpperCase();
 document.getElementById('tab-d').innerHTML='<div class="box" style="text-align:center"><div style="color:#00ff66;font-weight:900">'+SPORTS[SELECTED_SPORT].icon+' '+SELECTED_SPORT.toUpperCase()+' - '+(m.league&&m.league.name||'League')+'</div><div style="font-size:36px;font-weight:900;margin:10px 0">'+ft+'</div><div style="color:#aaa;font-size:11px">Status: '+(m.state&&m.state.description||m.status||'')+'<br>Date: '+SELECTED_DATE+'<br>ID:'+id+'</div></div>';
-
 var statsRes=await fetch('/api/stats?sport='+SELECTED_SPORT+'&id='+id+'&t='+Date.now());
 var statsData=await statsRes.json();
 var st=statsData.data||statsData||{};if(Array.isArray(st))st=st[0]||{};
@@ -159,7 +152,6 @@ if(SELECTED_SPORT==='football'){
  if(pH||sH||cH){hasAny=true; html+='<span>'+(pH||'-')+'</span><span style=color:#00ff66>Possession</span><span>'+(pA||'-')+'</span><span>'+(sH||'-')+'</span><span style=color:#00ff66>Shots</span><span>'+(sA||'-')+'</span><span>'+(cH||'-')+'</span><span style=color:#00ff66>Corners</span><span>'+(cA||'-')+'</span>';}
 }
 if(!hasAny){
- // AUTO SHOW WHATEVER API RETURNS
  var keys=Object.keys(combined);
  var shown=0;
  for(var i=0;i<keys.length && shown<6;i++){
@@ -176,7 +168,6 @@ if(!hasAny){
  html+='<span colspan=3 style="grid-column:1/-1;color:#aaa;padding:20px">No live stats available for this match yet<br>API auto-tried 5 endpoints<br>Score: '+ft+'</span>';
 }
 document.getElementById('statsGrid').innerHTML=html;
-
 if(curLeagueId){
  var rt=await fetch('/api/standings?sport='+SELECTED_SPORT+'&id='+curLeagueId+'&t='+Date.now());
  var td=await rt.json();
@@ -186,7 +177,7 @@ if(curLeagueId){
   rows.forEach(r=>{var hl=(r.team.toUpperCase()===h.toUpperCase()||r.team.toUpperCase()===a.toUpperCase())?' style="background:#0f2f0f"':'';h2+='<tr'+hl+'><td style="color:#00ff66;font-weight:900">'+r.pos+'.</td><td class="teamCell">'+r.team+'</td><td>'+r.MP+'</td><td>'+r.W+'</td><td>'+r.D+'</td><td>'+r.L+'</td><td>'+r.G+'</td><td style="color:#00ff66;font-weight:900">'+r.PTS+'</td></tr>';});h2+='</table></div>';
   document.getElementById('tableBox').innerHTML=h2;
  }else{
-  document.getElementById('tableBox').innerHTML='<div class="box">API auto-tried 6 season formats (no season, 2026,2025,2024,2023,2025-2026)<br>No table found for leagueId '+curLeagueId+'<br>This league may not have table in Highlightly API<br><br>Score still shows: '+ft+'</div>';
+  document.getElementById('tableBox').innerHTML='<div class="box">API auto-tried 6 season formats<br>No table found for leagueId '+curLeagueId+'<br>Score: '+ft+'</div>';
  }
 }
 }catch(e){document.getElementById('tab-d').innerHTML='<div class="box">Error '+e.message+'</div>';}
