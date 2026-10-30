@@ -5,7 +5,8 @@ const SPORTS = {
   handball: {url:"https://handball.highlightly.net", name:"HANDBALL", icon:"🤾"},
   volleyball: {url:"https://volleyball.highlightly.net", name:"VOLLEYBALL", icon:"🏐"},
   hockey: {url:"https://hockey.highlightly.net", name:"HOCKEY", icon:"🏒"},
-  rugby: {url:"https://rugby.highlightly.net", name:"RUGBY", icon:"🏉"}
+  rugby: {url:"https://rugby.highlightly.net", name:"RUGBY", icon:"🏉"},
+  tennis: {url:"https://tennis.highlightly.net", name:"TENNIS", icon:"🎾"}
 };
 
 export default {
@@ -68,7 +69,7 @@ export default {
     }
 
     const html = `<!DOCTYPE html><html><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND - MORE DAYS LIST</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND - TENNIS ADDED - MORE DAYS</title>
 <style>
 html,body{margin:0;background:#000;color:#fff;font-family:Arial}
 .top{display:flex;justify-content:center;padding:12px;background:#000;border-bottom:3px solid #00ff66;position:sticky;top:0;z-index:200}
@@ -101,7 +102,7 @@ table.standings{width:100%;border-collapse:collapse;font-size:11px} table.standi
 .logo1x-whiteblue{background:#fff;color:#0066ff;padding:5px 14px;border-radius:6px;font-weight:900;font-style:italic}
 </style>
 </head><body>
-<div class="top"><span class="logo">DIAMOND SPORTS API ALL</span></div>
+<div class="top"><span class="logo">DIAMOND - TENNIS ADDED</span></div>
 <div class="bet"><a href="${MY_1XBET}" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>BET NOW BONUS 300% - ALL SPORTS</span></a></div>
 <div class="sportsBar" id="sportsBar"></div>
 <div class="days" id="daysBar"></div>
@@ -118,7 +119,8 @@ var SPORTS = {
   handball: {name:"HANDBALL", icon:"🤾"},
   volleyball: {name:"VOLLEYBALL", icon:"🏐"},
   hockey: {name:"HOCKEY", icon:"🏒"},
-  rugby: {name:"RUGBY", icon:"🏉"}
+  rugby: {name:"RUGBY", icon:"🏉"},
+  tennis: {name:"TENNIS", icon:"🎾"}
 };
 function getIso(off){ var n=new Date(); n.setDate(n.getDate()+off); var l=new Date(n.toLocaleString('en-US',{timeZone:'Africa/Lagos'})); return l.getFullYear()+"-"+String(l.getMonth()+1).padStart(2,'0')+"-"+String(l.getDate()).padStart(2,'0'); }
 var dateMap={};
@@ -170,7 +172,6 @@ function toggleMoreDays(){
   moreOpen=!moreOpen;
   if(!moreOpen){ document.getElementById('moreDaysBox').style.display='none'; buildDays(); return; }
   var html='<div class="moreHeader">More days</div>';
-  // 7 days before like screenshot
   for(var i=-7;i<=-1;i++){
     if(i===-1){
       html+='<div class="moreRow" onclick="selectMore(\\'yesterday\\')"><a>Yesterday</a></div>';
