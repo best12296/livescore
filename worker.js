@@ -1,33 +1,110 @@
-const MY_1XBET="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97";
-const BASE="https://sports.highlightly.net";
-const SPORTS={football:{name:"FOOTBALL",icon:"⚽",path:"football"},basketball:{name:"BASKETBALL",icon:"🏀",path:"basketball"},nba:{name:"NBA",icon:"🏀",path:"nba"},nfl:{name:"NFL",icon:"🏈",path:"nfl"},hockey:{name:"HOCKEY",icon:"🏒",path:"hockey"},nhl:{name:"NHL",icon:"🏒",path:"nhl"},baseball:{name:"MLB",icon:"⚾",path:"mlb"},cricket:{name:"CRICKET",icon:"🏏",path:"cricket"},rugby:{name:"RUGBY",icon:"🏉",path:"rugby"},volleyball:{name:"VOLLEYBALL",icon:"🏐",path:"volleyball"},handball:{name:"HANDBALL",icon:"🤾",path:"handball"}};
-export default{async fetch(request,env){const KEY=env.HIGHLIGHTLY_KEY||"afad9a68-c248-429b-8aa7-b7626bb56744";const H={"x-rapidapi-key":KEY};const url=new URL(request.url);const cache=caches.default;
-async function cachedFetch(apiUrl,ttl=60){let req=new Request(apiUrl,{headers:H});let hit=await cache.match(req);if(hit)return hit;let r=await fetch(apiUrl,{headers:H});let txt=await r.text();let res=new Response(txt,{headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Cache-Control":"public, max-age="+ttl}});if(r.ok&&txt.length>10)await cache.put(req,res.clone());return res;}
-if(url.pathname==="/api/matches"){let s=url.searchParams.get("sport")||"football";let d=url.searchParams.get("date")||new Date().toISOString().split('T')[0];let p=SPORTS[s]?.path||s;let ttl=d===new Date().toISOString().split('T')[0]?30:300;return await cachedFetch(`${BASE}/${p}/matches?date=${d}`,ttl);}
-if(url.pathname==="/api/details"){let s=url.searchParams.get("sport")||"football";let id=url.searchParams.get("id")||"";let p=SPORTS[s]?.path||s;return await cachedFetch(`${BASE}/${p}/matches/${id}`,30);}
-if(url.pathname==="/api/stats"){let s=url.searchParams.get("sport")||"football";let id=url.searchParams.get("id")||"";let p=SPORTS[s]?.path||s;for(let ep of[`${BASE}/${p}/matches/${id}/statistics`,`${BASE}/${p}/matches/${id}/stats`]){try{let r=await fetch(ep,{headers:H});if(r.ok){let txt=await r.text();if(txt.length>20)return new Response(txt,{headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Cache-Control":"public, max-age=30"}});}}catch(e){}}return new Response(JSON.stringify({data:{}}),{headers:{"Content-Type":"application/json"}});}
-if(url.pathname==="/api/standings"){let s=url.searchParams.get("sport")||"football";let id=url.searchParams.get("id")||"";let p=SPORTS[s]?.path||s;let ck=new Request(`${BASE}/${p}/standings?leagueId=${id}`,{headers:H});let c=await cache.match(ck);if(c)return c;for(let season of["2026","2025","2024","2023"]){try{let r=await fetch(`${BASE}/${p}/standings?leagueId=${id}&season=${season}`,{headers:H});if(!r.ok)continue;let j=JSON.parse(await r.text());let rows=j.data||j.standings||[];if(rows.length<1)continue;let auto=rows.map(t=>({team:t.team?.name||t.team||t.name,MP:t.played||0,W:t.wins||0,D:t.draws||0,L:t.loses||0,G:t.goalsFor!=null?`${t.goalsFor}:${t.goalsAgainst}`:`${t.pointsFor||0}:${t.pointsAgainst||0}`,PTS:t.points||0})).sort((a,b)=>b.PTS-a.PTS).map((t,i)=>({pos:i+1,...t}));let res=new Response(JSON.stringify({data:auto}),[STRIPPED] max-age=600"}});await cache.put(ck,res.clone());return res;}catch(e){}}return new Response(JSON.stringify({data:[]}),[STRIPPED]
+const MY_1XBET = "https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97";
+const BASE = "https://sports.highlightly.net";
+const SPORTS = {
+  football: {name:"FOOTBALL", icon:"⚽", path:"football"},
+  basketball: {name:"BASKETBALL", icon:"🏀", path:"basketball"},
+  nba: {name:"NBA", icon:"🏀", path:"nba"},
+  nfl: {name:"NFL", icon:"🏈", path:"nfl"},
+  hockey: {name:"HOCKEY", icon:"🏒", path:"hockey"},
+  nhl: {name:"NHL", icon:"🏒", path:"nhl"},
+  baseball: {name:"MLB", icon:"⚾", path:"mlb"},
+  cricket: {name:"CRICKET", icon:"🏏", path:"cricket"},
+  rugby: {name:"RUGBY", icon:"🏉", path:"rugby"},
+  volleyball: {name:"VOLLEYBALL", icon:"🏐", path:"volleyball"},
+  handball: {name:"HANDBALL", icon:"🤾", path:"handball"}
+};
+
+export default {
+async fetch(request, env){
+const KEY = env.HIGHLIGHTLY_KEY || "afad9a68-c248-429b-8aa7-b7626bb56744";
+const H = {"x-rapidapi-key": KEY};
+const url = new URL(request.url);
+const cache = caches.default;
+
+async function cachedFetch(apiUrl, ttl){
+ let req = new Request(apiUrl, {headers:H});
+ let hit = await cache.match(req);
+ if(hit) return hit;
+ try{
+  let r = await fetch(apiUrl, {headers:H});
+  let txt = await r.text();
+  let res = new Response(txt, {headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Cache-Control":"public, max-age="+ttl}});
+  if(r.ok && txt.length>10) await cache.put(req, res.clone());
+  return res;
+ }catch(e){
+  return new Response(JSON.stringify({data:[]}), {headers:{"Content-Type":"application/json"}});
+ }
 }
-const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND FINAL</title>
-<style>html,body{margin:0;background:#000;color:#fff;font-family:Arial}.top{display:flex;justify-content:center;padding:12px;background:#000;border-bottom:3px solid #00ff66;position:sticky;top:0;z-index:200}.logo{background:#00ff66;color:#000;padding:8px 28px;border-radius:8px;font-weight:900}.sportsBar{display:flex;gap:6px;padding:10px;background:#111;overflow-x:auto;border-bottom:2px solid #00ff66;position:sticky;top:54px;z-index:150}.sportBtn{padding:10px 14px;border-radius:20px;font-weight:900;font-size:11px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66;min-width:70px;text-align:center}.sport-inactive{background:#000;color:#00ff66}.sport-active{background:#00ff66;color:#000}.days{display:flex;gap:8px;padding:10px;background:#000;overflow-x:auto;border-bottom:1px solid #333;position:sticky;top:103px;z-index:149}.dayBtn{padding:12px 16px;border-radius:20px;font-weight:900;font-size:12px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66;min-width:80px;text-align:center}.day-inactive{background:#000;color:#00ff66}.day-active{background:#00ff66;color:#000}.moreDaysBox{background:#0a0a0a;border:2px solid #00ff66;border-radius:10px;margin:8px;overflow:hidden;display:none}.sectionTitle{background:#00ff66;color:#000;padding:9px 10px;font-weight:900;font-size:12px;display:flex;justify-content:space-between}.match{display:flex;justify-content:space-between;align-items:center;padding:12px 10px;background:#0a0a0a;border-bottom:1px solid #1a1a1a;cursor:pointer}.league-header{background:#111;border-top:2px solid #00ff66;padding:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}.score{color:#00ff66;font-weight:900;font-size:16px;text-align:center;min-width:50px}.time-box{width:72px;text-align:center}.time-live{color:#ff3b30;font-weight:900;animation:blink 1s infinite}.time-ft{color:#fff;font-weight:900}.time-green{color:#00ff66;font-weight:900}@keyframes blink{50%{opacity:0.4}}.box{background:#0a0a0a;border:1px solid #222;border-radius:10px;padding:12px;margin:8px}table.standings{width:100%;border-collapse:collapse;font-size:11px}table.standings th{background:#00ff66;color:#000;padding:7px 3px}table.standings td{padding:8px 3px;border-bottom:1px solid #1a1a1a;text-align:center}table.standings td.teamCell{text-align:left;color:#fff}.bottom{position:fixed;bottom:0;left:0;right:0;padding:10px;background:#000;border-top:2.5px solid #00ff66;z-index:9999}.bottom a{background:#00ff66;color:#000;padding:12px;border-radius:12px;font-weight:900;text-align:center;display:flex;justify-content:center;gap:10px;text-decoration:none}.spacer{height:90px}.loading{padding:20px;text-align:center;color:#00ff66}#modal{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:99999;display:none;overflow-y:auto}#modalTop{background:#000;border-bottom:2.5px solid #00ff66;padding:12px;position:sticky;top:0;display:flex;justify-content:space-between;align-items:center}.closeBtn{background:#00ff66;color:#000;border:none;padding:10px 18px;border-radius:8px;font-weight:900}.tabs{display:flex;background:#111;border-bottom:2px solid #00ff66}.tabs button{flex:1;padding:12px;background:#111;color:#00ff66;border:none;font-weight:900;cursor:pointer}.tabs button.active{background:#00ff66;color:#000}.grid{display:grid;grid-template-columns:1fr 100px 1fr;text-align:center;gap:8px;padding:10px;font-size:12px}.bet{padding:10px}.bet a{background:#00ff66;color:#000;padding:12px;border-radius:12px;font-weight:900;text-decoration:none;display:flex;justify-content:center;gap:10px}.logo1x-whiteblue{background:#fff;color:#0066ff;padding:5px 14px;border-radius:6px;font-weight:900}</style></head><body>
-<div class="top"><span class="logo">DIAMOND - FINAL ALL SPORTS</span></div>
-<div class="bet"><a href="${MY_1XBET}" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>BET NOW 300% BONUS</span></a></div>
-<div class="sportsBar" id="sportsBar"></div><div class="days" id="daysBar"></div><div class="moreDaysBox" id="moreDaysBox"></div>
-<div id="content"><div class="loading">Loading FINAL - ALL SPORTS...</div></div>
-<div id="modal"><div id="modalTop"><span id="modalTitle">MATCH</span><button class="closeBtn" onclick="closeModal()">X CLOSE</button></div><div class="tabs"><button id="tb-d" class="active" onclick="showTab('d')">DETAILS</button><button id="tb-s" onclick="showTab('s')">STATS</button><button id="tb-t" onclick="showTab('t')">TABLE STANDING</button></div><div id="tab-d"></div><div id="tab-s" style="display:none"><div id="statsGrid" class="grid"></div></div><div id="tab-t" style="display:none"><div id="tableBox"></div></div><div class="bet"><a href="${MY_1XBET}" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>BET THIS MATCH NOW</span></a></div></div>
-<div class="spacer"></div><div class="bottom"><a href="${MY_1XBET}" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>BET ALL SPORTS LIVE 30s</span></a></div>
+
+if(url.pathname==="/api/matches"){
+ let sport = url.searchParams.get("sport") || "football";
+ let date = url.searchParams.get("date") || new Date().toISOString().split('T')[0];
+ let path = SPORTS[sport]?.path || sport;
+ let ttl = date===new Date().toISOString().split('T')[0]?30:300;
+ return await cachedFetch(`${BASE}/${path}/matches?date=${date}`, ttl);
+}
+if(url.pathname==="/api/details"){
+ let sport = url.searchParams.get("sport") || "football";
+ let id = url.searchParams.get("id") || "";
+ let path = SPORTS[sport]?.path || sport;
+ return await cachedFetch(`${BASE}/${path}/matches/${id}`,30);
+}
+if(url.pathname==="/api/stats"){
+ let sport = url.searchParams.get("sport") || "football";
+ let id = url.searchParams.get("id") || "";
+ let path = SPORTS[sport]?.path || sport;
+ for(let ep of [`${BASE}/${path}/matches/${id}/statistics`, `${BASE}/${path}/matches/${id}/stats`]){
+  try{
+   let r = await fetch(ep, {headers:H});
+   if(r.ok){
+    let txt = await r.text();
+    if(txt.length>20) return new Response(txt, {headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Cache-Control":"public, max-age=30"}});
+   }
+  }catch(e){}
+ }
+ return new Response(JSON.stringify({data:{}}), {headers:{"Content-Type":"application/json"}});
+}
+if(url.pathname==="/api/standings"){
+ let sport = url.searchParams.get("sport") || "football";
+ let id = url.searchParams.get("id") || "";
+ let path = SPORTS[sport]?.path || sport;
+ let ck = new Request(`${BASE}/${path}/standings?leagueId=${id}`,{headers:H});
+ let c = await cache.match(ck);
+ if(c) return c;
+ for(let season of ["2026","2025","2024","2023"]){
+  try{
+   let r=await fetch(`${BASE}/${path}/standings?leagueId=${id}&season=${season}`,{headers:H});
+   if(!r.ok) continue;
+   let j=JSON.parse(await r.text());
+   let rows=j.data||j.standings||[];
+   if(rows.length<1) continue;
+   let auto=rows.map(t=>({team:t.team?.name||t.team||t.name, MP:t.played||0, W:t.wins||0, D:t.draws||0, L:t.loses||0, G:t.goalsFor!=null?`${t.goalsFor}:${t.goalsAgainst}`:`${t.pointsFor||0}:${t.pointsAgainst||0}`, PTS:t.points||0})).sort((a,b)=>b.PTS-a.PTS).map((t,i)=>({pos:i+1,...t}));
+   let res=new Response(JSON.stringify({data:auto}),{headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Cache-Control":"public, max-age=600"}});
+   await cache.put(ck,res.clone()); return res;
+  }catch(e){}
+ }
+ return new Response(JSON.stringify({data:[]}),{headers:{"Content-Type":"application/json"}});
+}
+
+const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND FINAL BUILD PASS</title>
+<style>html,body{margin:0;background:#000;color:#fff;font-family:Arial}.top{display:flex;justify-content:center;padding:12px;background:#000;border-bottom:3px solid #00ff66;position:sticky;top:0;z-index:200}.logo{background:#00ff66;color:#000;padding:8px 28px;border-radius:8px;font-weight:900}.sportsBar{display:flex;gap:6px;padding:10px;background:#111;overflow-x:auto;border-bottom:2px solid #00ff66;position:sticky;top:54px;z-index:150}.sportBtn{padding:10px 14px;border-radius:20px;font-weight:900;font-size:11px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66;min-width:70px;text-align:center}.sport-inactive{background:#000;color:#00ff66}.sport-active{background:#00ff66;color:#000}.days{display:flex;gap:8px;padding:10px;background:#000;overflow-x:auto;border-bottom:1px solid #333;position:sticky;top:103px;z-index:149}.dayBtn{padding:12px 16px;border-radius:20px;font-weight:900;font-size:12px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66;min-width:80px;text-align:center}.day-inactive{background:#000;color:#00ff66}.day-active{background:#00ff66;color:#000}.sectionTitle{background:#00ff66;color:#000;padding:9px 10px;font-weight:900;font-size:12px;display:flex;justify-content:space-between}.match{display:flex;justify-content:space-between;align-items:center;padding:12px 10px;background:#0a0a0a;border-bottom:1px solid #1a1a1a;cursor:pointer}.league-header{background:#111;border-top:2px solid #00ff66;padding:10px;display:flex;justify-content:space-between;align-items:center}.score{color:#00ff66;font-weight:900;font-size:16px;text-align:center;min-width:50px}.time-box{width:72px;text-align:center}.time-live{color:#ff3b30;font-weight:900;animation:blink 1s infinite}.time-ft{color:#fff;font-weight:900}.time-green{color:#00ff66;font-weight:900}@keyframes blink{50%{opacity:0.4}}.box{background:#0a0a0a;border:1px solid #222;border-radius:10px;padding:12px;margin:8px}table.standings{width:100%;border-collapse:collapse;font-size:11px}table.standings th{background:#00ff66;color:#000;padding:7px 3px}table.standings td{padding:8px 3px;border-bottom:1px solid #1a1a1a;text-align:center}table.standings td.teamCell{text-align:left;color:#fff}.bottom{position:fixed;bottom:0;left:0;right:0;padding:10px;background:#000;border-top:2.5px solid #00ff66;z-index:9999}.bottom a{background:#00ff66;color:#000;padding:12px;border-radius:12px;font-weight:900;text-align:center;display:flex;justify-content:center;gap:10px;text-decoration:none}.spacer{height:90px}.loading{padding:20px;text-align:center;color:#00ff66}#modal{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:99999;display:none;overflow-y:auto}#modalTop{background:#000;border-bottom:2.5px solid #00ff66;padding:12px;position:sticky;top:0;display:flex;justify-content:space-between;align-items:center}.closeBtn{background:#00ff66;color:#000;border:none;padding:10px 18px;border-radius:8px;font-weight:900}.tabs{display:flex;background:#111;border-bottom:2px solid #00ff66}.tabs button{flex:1;padding:12px;background:#111;color:#00ff66;border:none;font-weight:900;cursor:pointer}.tabs button.active{background:#00ff66;color:#000}.grid{display:grid;grid-template-columns:1fr 100px 1fr;text-align:center;gap:8px;padding:10px;font-size:12px}.bet{padding:10px}.bet a{background:#00ff66;color:#000;padding:12px;border-radius:12px;font-weight:900;text-decoration:none;display:flex;justify-content:center;gap:10px}.logo1x-whiteblue{background:#fff;color:#0066ff;padding:5px 14px;border-radius:6px;font-weight:900}</style></head><body>
+<div class="top"><span class="logo">DIAMOND - FINAL BUILD PASS</span></div>
+<div class="bet"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>BET NOW 300% BONUS</span></a></div>
+<div class="sportsBar" id="sportsBar"></div>
+<div class="days" id="daysBar"></div>
+<div id="content"><div class="loading">Loading FINAL BUILD PASS...</div></div>
+<div id="modal"><div id="modalTop"><span id="modalTitle">MATCH</span><button class="closeBtn" onclick="closeModal()">X CLOSE</button></div><div class="tabs"><button id="tb-d" class="active" onclick="showTab('d')">DETAILS</button><button id="tb-s" onclick="showTab('s')">STATS</button><button id="tb-t" onclick="showTab('t')">TABLE STANDING</button></div><div id="tab-d"></div><div id="tab-s" style="display:none"><div id="statsGrid" class="grid"></div></div><div id="tab-t" style="display:none"><div id="tableBox"></div></div></div>
+<div class="spacer"></div>
+<div class="bottom"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>BET ALL SPORTS LIVE 30s</span></a></div>
 <script>
-var ALL_MATCHES=[];var SELECTED_SPORT='football';var SELECTED_DATE='';var moreOpen=false;var autoTimer=null;var curLeagueId=null;
+var ALL_MATCHES=[];var SELECTED_SPORT='football';var SELECTED_DATE='';var autoTimer=null;var curLeagueId=null;
 var SPORTS={football:{name:"FOOTBALL",icon:"⚽"},basketball:{name:"BASKETBALL",icon:"🏀"},nba:{name:"NBA",icon:"🏀"},nfl:{name:"NFL",icon:"🏈"},hockey:{name:"HOCKEY",icon:"🏒"},nhl:{name:"NHL",icon:"🏒"},baseball:{name:"MLB",icon:"⚾"},cricket:{name:"CRICKET",icon:"🏏"},rugby:{name:"RUGBY",icon:"🏉"},volleyball:{name:"VOLLEYBALL",icon:"🏐"},handball:{name:"HANDBALL",icon:"🤾"}};
 function getIso(off){var n=new Date();n.setDate(n.getDate()+off);var l=new Date(n.toLocaleString('en-US',{timeZone:'Africa/Lagos'}));return l.getFullYear()+"-"+String(l.getMonth()+1).padStart(2,'0')+"-"+String(l.getDate()).padStart(2,'0');}
-var dateMap={};function initDates(){dateMap['yesterday']=getIso(-1);dateMap['today']=getIso(0);dateMap['tomorrow']=getIso(1);for(var i=-7;i<=7;i++){if(i===-1||i===0||i===1)continue;dateMap['d'+i]=getIso(i);}}
+var dateMap={};function initDates(){dateMap['yesterday']=getIso(-1);dateMap['today']=getIso(0);dateMap['tomorrow']=getIso(1);}
 function buildSports(){var html='';for(var k in SPORTS){var active=k===SELECTED_SPORT?'sport-active':'sport-inactive';html+='<div class="sportBtn '+active+'" onclick="selectSport(\\''+k+'\\')">'+SPORTS[k].icon+' '+SPORTS[k].name+'</div>';}document.getElementById('sportsBar').innerHTML=html;}
 function selectSport(s){SELECTED_SPORT=s;buildSports();buildDays();loadDate(dateMap['today'],false);startAuto();}
-function formatMoreDay(iso){var dt=new Date(iso);return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+' '+dt.toLocaleDateString('en-GB',{weekday:'short'}).substring(0,2);}
-function buildDays(){var html='';[{key:'yesterday',label:'YESTERDAY'},{key:'today',label:'TODAY'},{key:'tomorrow',label:'TOMORROW'}].forEach(function(d){var iso=dateMap[d.key];var active=(SELECTED_DATE===iso)?'day-active':'day-inactive';if(SELECTED_DATE===''&&d.key==='today'){active='day-active';SELECTED_DATE=iso;}html+='<div class="dayBtn '+active+'" onclick="selectDay(\\''+d.key+'\\')">'+d.label+'</div>';});html+='<div class="dayBtn '+(moreOpen?'day-active':'day-inactive')+'" onclick="toggleMoreDays()">MORE DAYS »</div>';document.getElementById('daysBar').innerHTML=html;}
-function selectDay(k){moreOpen=false;document.getElementById('moreDaysBox').style.display='none';SELECTED_DATE=dateMap[k]||dateMap['today'];buildDays();loadDate(SELECTED_DATE,false);startAuto();}
-function toggleMoreDays(){moreOpen=!moreOpen;if(!moreOpen){document.getElementById('moreDaysBox').style.display='none';buildDays();return;}var html='<div style="background:#8B0000;color:#fff;padding:10px;font-weight:900">More days</div>';for(var i=-7;i<=7;i++){if(i===-1)html+='<div style="padding:12px;border-bottom:1px solid #222;cursor:pointer" onclick="selectMore(\\'yesterday\\')"><a style="color:#00ccff">Yesterday</a></div>';else if(i===0)html+='<div style="padding:12px;border-bottom:1px solid #222;cursor:pointer" onclick="selectMore(\\'today\\')"><a style="color:#00ccff">Today</a></div>';else if(i===1)html+='<div style="padding:12px;border-bottom:1px solid #222;cursor:pointer" onclick="selectMore(\\'tomorrow\\')"><a style="color:#00ccff">Tomorrow</a></div>';else{var iso=getIso(i);html+='<div style="padding:12px;border-bottom:1px solid #222;cursor:pointer" onclick="selectMore(\\'d'+i+'\\')"><a style="color:#00ccff">'+formatMoreDay(iso)+'</a></div>';}}document.getElementById('moreDaysBox').innerHTML=html;document.getElementById('moreDaysBox').style.display='block';buildDays();}
-function selectMore(k){SELECTED_DATE=dateMap[k]||getIso(0);moreOpen=false;document.getElementById('moreDaysBox').style.display='none';buildDays();loadDate(SELECTED_DATE,false);startAuto();}
+function buildDays(){var html='';[{key:'yesterday',label:'YESTERDAY'},{key:'today',label:'TODAY'},{key:'tomorrow',label:'TOMORROW'}].forEach(function(d){var iso=dateMap[d.key];var active=(SELECTED_DATE===iso)?'day-active':'day-inactive';if(SELECTED_DATE===''&&d.key==='today'){active='day-active';SELECTED_DATE=iso;}html+='<div class="dayBtn '+active+'" onclick="selectDay(\\''+d.key+'\\')">'+d.label+'</div>';});document.getElementById('daysBar').innerHTML=html;}
+function selectDay(k){SELECTED_DATE=dateMap[k]||dateMap['today'];buildDays();loadDate(SELECTED_DATE,false);startAuto();}
 function getScores(m){try{var s=m.state?.score?.current||"";if(typeof s==='string'&&s.indexOf('-')>-1){var p=s.split('-');return{h:p[0].trim(),a:p[1].trim()};}return{h:null,a:null};}catch(e){return{h:null,a:null};}}
 function getTimeInfo(m){var s=m.date||"";var desc=(m.state?.description||m.status||"").toUpperCase();var isFin=desc.indexOf('FINISHED')>-1;var isLive=desc.indexOf('HALF')>-1||desc.indexOf('LIVE')>-1;var timeStr="-";try{if(s){var dt=new Date(s);if(!isNaN(dt.getTime()))timeStr=dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Lagos'});}}catch(e){}var display=isFin?'FT':(isLive?'LIVE':timeStr);return{display:display,isLive:isLive,isFinished:isFin,ts:s?new Date(s).getTime():0};}
 async function loadDate(dstr,silent){if(!dstr)dstr=getIso(0);SELECTED_DATE=dstr;buildSports();buildDays();if(!silent)document.getElementById('content').innerHTML='<div class="loading">Loading '+SPORTS[SELECTED_SPORT].name+'...</div>';try{var res=await fetch('/api/matches?sport='+SELECTED_SPORT+'&date='+dstr+'&t='+Date.now());var data=await res.json();ALL_MATCHES=data.data||data.matches||[];if(!Array.isArray(ALL_MATCHES))ALL_MATCHES=[];render(silent);}catch(e){if(!silent)document.getElementById('content').innerHTML='<div class="box">No games</div>';}}
