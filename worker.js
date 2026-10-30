@@ -1,18 +1,11 @@
-// DIAMOND V10 FINAL - FULL TABLE ALL SPORTS - YOUR NEW KEY
+// DIAMOND V12 - EVERYTHING CLICKABLE - FULL 2026 - NEW KEY
 const BASE = "https://sports.highlightly.net";
 const MY_KEY = "c0ea652f-f82d-4f43-b648-573b736a72a6";
 const SPORTS_MAP = {
-  football: {name:"FOOTBALL", icon:"⚽", path:"football"},
-  basketball: {name:"BASKETBALL", icon:"🏀", path:"basketball"},
-  nba: {name:"NBA", icon:"🏀", path:"nba"},
-  hockey: {name:"HOCKEY", icon:"🏒", path:"hockey"},
-  nhl: {name:"NHL", icon:"🏒", path:"nhl"},
-  cricket: {name:"CRICKET", icon:"🏏", path:"cricket"},
-  rugby: {name:"RUGBY", icon:"🏉", path:"rugby"},
-  volleyball: {name:"VOLLEYBALL", icon:"🏐", path:"volleyball"},
-  handball: {name:"HANDBALL", icon:"🤾", path:"handball"},
-  americanfootball: {name:"NFL", icon:"🏈", path:"american-football"},
-  baseball: {name:"BASEBALL", icon:"⚾", path:"baseball"}
+  football:{path:"football",icon:"⚽"}, basketball:{path:"basketball",icon:"🏀"}, nba:{path:"nba",icon:"🏀"},
+  hockey:{path:"hockey",icon:"🏒"}, nhl:{path:"nhl",icon:"🏒"}, cricket:{path:"cricket",icon:"🏏"},
+  rugby:{path:"rugby",icon:"🏉"}, volleyball:{path:"volleyball",icon:"🏐"}, handball:{path:"handball",icon:"🤾"},
+  americanfootball:{path:"american-football",icon:"🏈"}, baseball:{path:"baseball",icon:"⚾"}
 };
 export default {
 async fetch(request, env){
@@ -20,114 +13,118 @@ const KEY = env.HIGHLIGHTLY_KEY || MY_KEY;
 const H = {"x-rapidapi-key": KEY};
 const url = new URL(request.url);
 if(url.pathname==="/api/matches"){
- let sport = url.searchParams.get("sport") || "football";
- let date = url.searchParams.get("date") || new Date().toISOString().split('T')[0];
- let cfg = SPORTS_MAP[sport] || SPORTS_MAP.football;
- let r = await fetch(BASE+"/"+cfg.path+"/matches?date="+date, {headers:H});
- let txt = await r.text();
- return new Response(txt, {headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
-}
-if(url.pathname==="/api/leagues"){
- let sport = url.searchParams.get("sport") || "football";
- let cfg = SPORTS_MAP[sport] || SPORTS_MAP.football;
- let r = await fetch(BASE+"/"+cfg.path+"/leagues", {headers:H});
- let txt = await r.text();
- return new Response(txt, {headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
+ let sport=url.searchParams.get("sport")||"football"; let date=url.searchParams.get("date")||new Date().toISOString().split('T')[0];
+ let cfg=SPORTS_MAP[sport]||SPORTS_MAP.football;
+ let r=await fetch(BASE+"/"+cfg.path+"/matches?date="+date,{headers:H});
+ return new Response(await r.text(),{headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
 }
 if(url.pathname==="/api/details"){
- let sport = url.searchParams.get("sport") || "football";
- let id = url.searchParams.get("id") || "";
- let cfg = SPORTS_MAP[sport] || SPORTS_MAP.football;
- let r = await fetch(BASE+"/"+cfg.path+"/matches/"+id, {headers:H});
- let txt = await r.text();
- return new Response(txt, {headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
+ let sport=url.searchParams.get("sport")||"football"; let id=url.searchParams.get("id")||"";
+ let cfg=SPORTS_MAP[sport]||SPORTS_MAP.football;
+ let r=await fetch(BASE+"/"+cfg.path+"/matches/"+id,{headers:H});
+ return new Response(await r.text(),{headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
 }
 if(url.pathname==="/api/stats"){
- let sport = url.searchParams.get("sport") || "football";
- let id = url.searchParams.get("id") || "";
- let cfg = SPORTS_MAP[sport] || SPORTS_MAP.football;
- let eps = [BASE+"/"+cfg.path+"/statistics/"+id, BASE+"/"+cfg.path+"/matches/"+id+"/statistics", BASE+"/"+cfg.path+"/box-score/"+id];
- for(let ep of eps){
-  try{ let r = await fetch(ep, {headers:H}); if(r.ok){ let txt = await r.text(); if(txt.length>30){ let j=JSON.parse(txt); let d=j.data||j; let has = Array.isArray(d)?d.length>0:Object.keys(d).length>0; if(has) return new Response(txt, {headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}}); } } }catch(e){}
- }
- return new Response(JSON.stringify({data:{}}), {headers:{"Content-Type":"application/json"}});
+ let sport=url.searchParams.get("sport")||"football"; let id=url.searchParams.get("id")||"";
+ let cfg=SPORTS_MAP[sport]||SPORTS_MAP.football;
+ let eps=[BASE+"/"+cfg.path+"/statistics/"+id, BASE+"/"+cfg.path+"/matches/"+id+"/statistics", BASE+"/"+cfg.path+"/box-score/"+id];
+ for(let ep of eps){ try{ let r=await fetch(ep,{headers:H}); if(r.ok){ let txt=await r.text(); if(txt.length>40) return new Response(txt,{headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});} }catch(e){} }
+ return new Response(JSON.stringify({data:{}}),{headers:{"Content-Type":"application/json"}});
 }
 if(url.pathname==="/api/standings"){
- let sport = url.searchParams.get("sport") || "football";
- let id = url.searchParams.get("id") || "";
- let cfg = SPORTS_MAP[sport] || SPORTS_MAP.football;
- let tries = [BASE+"/"+cfg.path+"/standings?leagueId="+id+"&season=2026", BASE+"/"+cfg.path+"/standings?leagueId="+id+"&season=2025", BASE+"/"+cfg.path+"/standings?leagueId="+id+"&season=2024", BASE+"/"+cfg.path+"/standings?leagueId="+id, BASE+"/football/standings?leagueId="+id+"&season=2026"];
- for(let ep of tries){
-  try{
-   let r=await fetch(ep,{headers:H}); if(!r.ok) continue;
-   let txt=await r.text(); let j=JSON.parse(txt); let rows=j.data||j.standings||j||[];
-   if(!Array.isArray(rows) || rows.length<1) continue;
-   let auto=rows.map(function(t){ var name = (t.team && t.team.name) ? t.team.name : (t.team || t.name || t.teamName || "Team"); var pl = t.played||t.matches||t.MP||0; var w = t.wins||t.W||0; var d = t.draws||t.D||0; var l = t.loses||t.L||t.losses||0; var gf = t.goalsFor!=null?t.goalsFor:t.scored||0; var ga = t.goalsAgainst!=null?t.goalsAgainst:t.conceded||0; var pts = t.points||t.PTS||t.pts||0; var gStr = (gf||ga)?gf+":"+ga:(t.goals||0); return {team:name, MP:pl, W:w, D:d, L:l, G:gStr, PTS:pts}; }).sort((a,b)=>b.PTS-a.PTS).map((t,i)=>({pos:i+1,team:t.team,MP:t.MP,W:t.W,D:t.D,L:t.L,G:t.G,PTS:t.PTS}));
-   if(auto.length>0) return new Response(JSON.stringify({data:auto, source:"real"}), {headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
-  }catch(e){}
- }
- return new Response(JSON.stringify({data:[], source:"none"}), {headers:{"Content-Type":"application/json"}});
+ let sport=url.searchParams.get("sport")||"football"; let id=url.searchParams.get("id")||"";
+ let cfg=SPORTS_MAP[sport]||SPORTS_MAP.football;
+ let tries=[BASE+"/"+cfg.path+"/standings?leagueId="+id+"&season=2026", BASE+"/"+cfg.path+"/standings?leagueId="+id+"&season=2025", BASE+"/"+cfg.path+"/standings?leagueId="+id];
+ for(let ep of tries){ try{ let r=await fetch(ep,{headers:H}); if(!r.ok) continue; let j=await r.json(); let rows=j.data||j.standings||[]; if(rows.length>0){ let auto=rows.map(t=>{ let name=t.team&&t.team.name||t.team||t.name||"Team"; return {team:name,MP:t.played||0,W:t.wins||0,D:t.draws||0,L:t.loses||0,G:(t.goalsFor||0)+":"+(t.goalsAgainst||0),PTS:t.points||0}; }).sort((a,b)=>b.PTS-a.PTS).map((t,i)=>({pos:i+1,...t})); return new Response(JSON.stringify({data:auto,source:"real"}),{headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});} }catch(e){} }
+ return new Response(JSON.stringify({data:[],source:"none"}),{headers:{"Content-Type":"application/json"}});
 }
 if(url.pathname==="/api/full-table"){
- let sport = url.searchParams.get("sport") || "football";
- let leagueId = url.searchParams.get("id") || "";
- let cfg = SPORTS_MAP[sport] || SPORTS_MAP.football;
- let all=[]; let now=new Date();
- for(let i=0;i<15;i++){
-  let d=new Date(now); d.setDate(d.getDate()-i); let iso=d.toISOString().split('T')[0];
-  try{
-   let r=await fetch(BASE+"/"+cfg.path+"/matches?date="+iso, {headers:H}); if(!r.ok) continue;
-   let j=await r.json(); let ms=j.data||j.matches||[];
-   ms.forEach(function(m){ if(String(m.league&&m.league.id)===String(leagueId)) all.push(m); });
-  }catch(e){}
- }
+ let sport=url.searchParams.get("sport")||"football"; let leagueId=url.searchParams.get("id")||"";
+ let cfg=SPORTS_MAP[sport]||SPORTS_MAP.football; let all=[]; 
+ let days=90;
+ for(let i=0;i<days;i++){ let d=new Date(); d.setDate(d.getDate()-i); let iso=d.toISOString().split('T')[0]; try{ let r=await fetch(BASE+"/"+cfg.path+"/matches?date="+iso,{headers:H}); if(!r.ok) continue; let j=await r.json(); let ms=j.data||j.matches||[]; ms.forEach(m=>{ if(String(m.league&&m.league.id)===String(leagueId)) all.push(m); }); }catch(e){} if(i%15===0) await new Promise(r=>setTimeout(r,150)); }
  var tableMap={};
- all.forEach(function(mm){ var h=mm.homeTeam&&mm.homeTeam.name||"Home"; var a=mm.awayTeam&&mm.awayTeam.name||"Away"; var s=mm.state&&mm.state.score&&mm.state.score.current||""; var hg=0,ag=0,has=false; if(typeof s==='string'&&s.indexOf('-')>-1){var p=s.split('-');hg=parseInt(p[0])||0;ag=parseInt(p[1])||0;has=true;} if(!tableMap[h])tableMap[h]={team:h,MP:0,W:0,D:0,L:0,GF:0,GA:0,PTS:0}; if(!tableMap[a])tableMap[a]={team:a,MP:0,W:0,D:0,L:0,GF:0,GA:0,PTS:0}; if(has){ tableMap[h].MP++;tableMap[a].MP++;tableMap[h].GF+=hg;tableMap[h].GA+=ag;tableMap[a].GF+=ag;tableMap[a].GA+=hg; if(hg>ag){tableMap[h].W++;tableMap[h].PTS+=3;tableMap[a].L++;} else if(ag>hg){tableMap[a].W++;tableMap[a].PTS+=3;tableMap[h].L++;} else{tableMap[h].D++;tableMap[a].D++;tableMap[h].PTS++;tableMap[a].PTS++;} } });
+ all.forEach(mm=>{ var h=mm.homeTeam&&mm.homeTeam.name||"Home"; var a=mm.awayTeam&&mm.awayTeam.name||"Away"; var s=mm.state&&mm.state.score&&mm.state.score.current||""; var hg=0,ag=0,has=false; if(typeof s==='string'&&s.indexOf('-')>-1){ var p=s.split('-'); hg=parseInt(p[0])||0; ag=parseInt(p[1])||0; has=true; } if(!tableMap[h])tableMap[h]={team:h,MP:0,W:0,D:0,L:0,GF:0,GA:0,PTS:0}; if(!tableMap[a])tableMap[a]={team:a,MP:0,W:0,D:0,L:0,GF:0,GA:0,PTS:0}; if(has){ tableMap[h].MP++; tableMap[a].MP++; tableMap[h].GF+=hg; tableMap[h].GA+=ag; tableMap[a].GF+=ag; tableMap[a].GA+=hg; if(hg>ag){tableMap[h].W++;tableMap[h].PTS+=3;tableMap[a].L++;} else if(ag>hg){tableMap[a].W++;tableMap[a].PTS+=3;tableMap[h].L++;} else{tableMap[h].D++;tableMap[a].D++;tableMap[h].PTS++;tableMap[a].PTS++;} } });
  var rows=Object.values(tableMap).sort((x,y)=>y.PTS-x.PTS).map((t,i)=>({pos:i+1,team:t.team,MP:t.MP,W:t.W,D:t.D,L:t.L,G:t.GF+":"+t.GA,PTS:t.PTS}));
- return new Response(JSON.stringify({data:rows, matches:all.length, days:15}), {headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
+ return new Response(JSON.stringify({data:rows, matches:all.length, days:days, season:"2026 FULL"}),{headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
 }
-return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND V10 FULL</title><style>html,body{margin:0;background:#000;color:#fff;font-family:Arial}.top{display:flex;justify-content:center;padding:12px;background:#000;border-bottom:3px solid #00ff66;position:sticky;top:0;z-index:200}.logo{background:#00ff66;color:#000;padding:8px 28px;border-radius:8px;font-weight:900}.sportsBar{display:flex;gap:6px;padding:10px;background:#111;overflow-x:auto;border-bottom:2px solid #00ff66;position:sticky;top:54px;z-index:150}.sportBtn{padding:10px 12px;border-radius:20px;font-weight:900;font-size:10px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66;min-width:60px;text-align:center}.sport-inactive{background:#000;color:#00ff66}.sport-active{background:#00ff66;color:#000}.days{display:flex;gap:8px;padding:10px;background:#000;overflow-x:auto;border-bottom:1px solid #333;position:sticky;top:103px;z-index:149}.dayBtn{padding:12px 16px;border-radius:20px;font-weight:900;font-size:12px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66;min-width:80px;text-align:center}.day-inactive{background:#000;color:#00ff66}.day-active{background:#00ff66;color:#000}.sectionTitle{background:#00ff66;color:#000;padding:9px 10px;font-weight:900;font-size:12px;display:flex;justify-content:space-between}.match{display:flex;justify-content:space-between;align-items:center;padding:12px 10px;background:#0a0a0a;border-bottom:1px solid #1a1a1a;cursor:pointer}.league-header{background:#111;border-top:2px solid #00ff66;padding:10px;display:flex;justify-content:space-between;align-items:center}.score{color:#00ff66;font-weight:900;font-size:16px;text-align:center;min-width:50px}.time-box{width:72px;text-align:center}.time-live{color:#ff3b30;font-weight:900;animation:blink 1s infinite}.time-ft{color:#fff;font-weight:900}.time-green{color:#00ff66;font-weight:900}@keyframes blink{50%{opacity:0.4}}.box{background:#0a0a0a;border:1px solid #222;border-radius:10px;padding:12px;margin:8px}table.standings{width:100%;border-collapse:collapse;font-size:11px}table.standings th{background:#00ff66;color:#000;padding:7px 3px}table.standings td{padding:8px 3px;border-bottom:1px solid #1a1a1a;text-align:center}table.standings td.teamCell{text-align:left;color:#fff}.bottom{position:fixed;bottom:0;left:0;right:0;padding:10px;background:#000;border-top:2.5px solid #00ff66;z-index:9999}.bottom a{background:#00ff66;color:#000;padding:12px;border-radius:12px;font-weight:900;text-align:center;display:flex;justify-content:center;gap:10px;text-decoration:none}.spacer{height:90px}.loading{padding:20px;text-align:center;color:#00ff66}#modal{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:99999;display:none;overflow-y:auto}#modalTop{background:#000;border-bottom:2.5px solid #00ff66;padding:12px;position:sticky;top:0;display:flex;justify-content:space-between;align-items:center}.closeBtn{background:#00ff66;color:#000;border:none;padding:10px 18px;border-radius:8px;font-weight:900}.tabs{display:flex;background:#111;border-bottom:2px solid #00ff66}.tabs button{flex:1;padding:12px;background:#111;color:#00ff66;border:none;font-weight:900;cursor:pointer}.tabs button.active{background:#00ff66;color:#000}.grid{display:grid;grid-template-columns:1fr 100px 1fr;text-align:center;gap:8px;padding:10px;font-size:12px}.bet{padding:10px}.bet a{background:#00ff66;color:#000;padding:12px;border-radius:12px;font-weight:900;text-decoration:none;display:flex;justify-content:center;gap:10px}.logo1x-whiteblue{background:#fff;color:#0066ff;padding:5px 14px;border-radius:6px;font-weight:900}</style></head><body>
-<div class="top"><span class="logo">DIAMOND V10 FULL KEY</span></div>
-<div class="bet"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>BET NOW 300% BONUS</span></a></div>
+return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>V12 CLICKABLE</title><style>html,body{margin:0;background:#000;color:#fff;font-family:Arial}.top{display:flex;justify-content:center;padding:12px;background:#000;border-bottom:3px solid #00ff66;position:sticky;top:0;z-index:200}.logo{background:#00ff66;color:#000;padding:8px 28px;border-radius:8px;font-weight:900}.sportsBar{display:flex;gap:6px;padding:10px;background:#111;overflow-x:auto;border-bottom:2px solid #00ff66;position:sticky;top:54px;z-index:150}.sportBtn{padding:10px 12px;border-radius:20px;font-weight:900;font-size:10px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66}.sport-inactive{background:#000;color:#00ff66}.sport-active{background:#00ff66;color:#000}.days{display:flex;gap:8px;padding:10px;background:#000;overflow-x:auto;border-bottom:1px solid #333;position:sticky;top:103px;z-index:149}.dayBtn{padding:12px 16px;border-radius:20px;font-weight:900;font-size:12px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66}.day-inactive{background:#000;color:#00ff66}.day-active{background:#00ff66;color:#000}.sectionTitle{background:#00ff66;color:#000;padding:9px 10px;font-weight:900;font-size:12px}.match{display:flex;justify-content:space-between;align-items:center;padding:12px 10px;background:#0a0a0a;border-bottom:1px solid #1a1a1a;cursor:pointer}.match:hover{background:#151515}.league-header{background:#111;border-top:2px solid #00ff66;padding:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}.league-header:hover{background:#1a1a1a}.teamName{cursor:pointer}.teamName:hover{color:#00ff66;text-decoration:underline}.score{color:#00ff66;font-weight:900;min-width:50px;text-align:center}.time-box{width:72px;text-align:center}.time-live{color:#ff3b30;font-weight:900;animation:blink 1s infinite}.time-ft{color:#fff;font-weight:900}.time-green{color:#00ff66;font-weight:900}@keyframes blink{50%{opacity:0.4}}.box{background:#0a0a0a;border:1px solid #222;border-radius:10px;padding:12px;margin:8px}table.standings{width:100%;border-collapse:collapse;font-size:11px}table.standings th{background:#00ff66;color:#000;padding:7px 3px}table.standings td{padding:8px 3px;border-bottom:1px solid #1a1a1a;text-align:center;cursor:pointer}table.standings td:hover{background:#151515}table.standings td.teamCell{text-align:left;color:#fff;cursor:pointer}table.standings tr:hover{background:#151515}.bottom{position:fixed;bottom:0;left:0;right:0;padding:10px;background:#000;border-top:2.5px solid #00ff66;z-index:9999}.bottom a{background:#00ff66;color:#000;padding:12px;border-radius:12px;font-weight:900;text-align:center;display:flex;justify-content:center;gap:10px;text-decoration:none}.spacer{height:90px}.loading{padding:20px;text-align:center;color:#00ff66}#modal{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:99999;display:none;overflow-y:auto}#modalTop{background:#000;border-bottom:2.5px solid #00ff66;padding:12px;position:sticky;top:0;display:flex;justify-content:space-between;align-items:center}.closeBtn{background:#00ff66;color:#000;border:none;padding:10px 18px;border-radius:8px;font-weight:900}.tabs{display:flex;background:#111;border-bottom:2px solid #00ff66}.tabs button{flex:1;padding:12px;background:#111;color:#00ff66;border:none;font-weight:900;cursor:pointer}.tabs button.active{background:#00ff66;color:#000}.grid{display:grid;grid-template-columns:1fr 100px 1fr;text-align:center;gap:8px;padding:10px;font-size:12px}.bet{padding:10px}.bet a{background:#00ff66;color:#000;padding:12px;border-radius:12px;font-weight:900;text-decoration:none;display:flex;justify-content:center;gap:10px}.logo1x-whiteblue{background:#fff;color:#0066ff;padding:5px 14px;border-radius:6px;font-weight:900}.clickHint{background:#111;color:#00ff66;padding:6px 10px;font-size:10px;text-align:center;border-bottom:1px solid #222}</style></head><body>
+<div class="top"><span class="logo">DIAMOND V12 CLICKABLE</span></div>
+<div class="bet"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>BET NOW 300% BONUS - CLICKABLE</span></a></div>
 <div class="sportsBar" id="sportsBar"></div><div class="days" id="daysBar"></div>
-<div id="content"><div class="loading">V10 FULL WITH NEW KEY - LOADING...</div></div>
-<div id="modal"><div id="modalTop"><span id="modalTitle">MATCH</span><button class="closeBtn" onclick="closeModal()">X CLOSE</button></div><div class="tabs"><button id="tb-d" class="active" onclick="showTab('d')">DETAILS</button><button id="tb-s" onclick="showTab('s')">STATS</button><button id="tb-t" onclick="showTab('t')">TABLE 2026</button></div><div id="tab-d"></div><div id="tab-s" style="display:none"><div id="statsGrid" class="grid"></div></div><div id="tab-t" style="display:none"><div id="tableBox"></div></div></div>
-<div class="spacer"></div><div class="bottom"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>V10 FULL TABLE NEW KEY</span></a></div>
+<div class="clickHint">💡 EVERYTHING CLICKABLE: Click league header = Full Table | Click team name = Filter | Click match = Details</div>
+<div id="content"><div class="loading">V12 CLICKABLE FULL 2026 - LOADING...</div></div>
+<div id="modal"><div id="modalTop"><span id="modalTitle">MATCH</span><button class="closeBtn" onclick="closeModal()">X CLOSE</button></div><div class="tabs"><button id="tb-d" class="active" onclick="showTab('d')">DETAILS</button><button id="tb-s" onclick="showTab('s')">STATS</button><button id="tb-t" onclick="showTab('t')">TABLE 2026 FULL</button></div><div id="tab-d"></div><div id="tab-s" style="display:none"><div id="statsGrid" class="grid"></div></div><div id="tab-t" style="display:none"><div id="tableBox"></div></div></div>
+<div class="spacer"></div><div class="bottom"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>V12 CLICKABLE</span></a></div>
 <script>
-var ALL_MATCHES=[];var SELECTED_SPORT='football';var SELECTED_DATE='';var autoTimer=null;var curLeagueId=null;var curLeagueName='';
+var ALL_MATCHES=[];var FILTERED=[];var SELECTED_SPORT='football';var SELECTED_DATE='';var autoTimer=null;var curLeagueId=null;var curLeagueName='';var curTeamFilter=null;
 var SPORTS={football:{name:"FOOTBALL",icon:"⚽"},basketball:{name:"BASKETBALL",icon:"🏀"},nba:{name:"NBA",icon:"🏀"},hockey:{name:"HOCKEY",icon:"🏒"},nhl:{name:"NHL",icon:"🏒"},cricket:{name:"CRICKET",icon:"🏏"},rugby:{name:"RUGBY",icon:"🏉"},volleyball:{name:"VOLLEYBALL",icon:"🏐"},handball:{name:"HANDBALL",icon:"🤾"},americanfootball:{name:"NFL",icon:"🏈"},baseball:{name:"BASEBALL",icon:"⚾"}};
 function getIso(off){var n=new Date();n.setDate(n.getDate()+off);var l=new Date(n.toLocaleString('en-US',{timeZone:'Africa/Lagos'}));return l.getFullYear()+"-"+String(l.getMonth()+1).padStart(2,'0')+"-"+String(l.getDate()).padStart(2,'0');}
 var dateMap={};function initDates(){dateMap['yesterday']=getIso(-1);dateMap['today']=getIso(0);dateMap['tomorrow']=getIso(1);}
-function buildSports(){var html='';for(var k in SPORTS){var active=k===SELECTED_SPORT?'sport-active':'sport-inactive';html+='<div class="sportBtn '+active+'" data-sport="'+k+'">'+SPORTS[k].icon+' '+SPORTS[k].name+'</div>';}document.getElementById('sportsBar').innerHTML=html;document.querySelectorAll('.sportBtn').forEach(function(el){el.onclick=function(){SELECTED_SPORT=this.dataset.sport;buildSports();buildDays();loadDate(dateMap['today'],false);startAuto();}});}
-function buildDays(){var html='';[{key:'yesterday',label:'YESTERDAY'},{key:'today',label:'TODAY'},{key:'tomorrow',label:'TOMORROW'}].forEach(function(d){var iso=dateMap[d.key];var active=(SELECTED_DATE===iso)?'day-active':'day-inactive';if(SELECTED_DATE===''&&d.key==='today'){active='day-active';SELECTED_DATE=iso;}html+='<div class="dayBtn '+active+'" data-day="'+d.key+'">'+d.label+'</div>';});document.getElementById('daysBar').innerHTML=html;document.querySelectorAll('.dayBtn').forEach(function(el){el.onclick=function(){SELECTED_DATE=dateMap[this.dataset.day]||dateMap['today'];buildDays();loadDate(SELECTED_DATE,false);startAuto();}});}
+function buildSports(){var html='';for(var k in SPORTS){var active=k===SELECTED_SPORT?'sport-active':'sport-inactive';html+='<div class="sportBtn '+active+'" data-sport="'+k+'">'+SPORTS[k].icon+' '+SPORTS[k].name+'</div>';}document.getElementById('sportsBar').innerHTML=html;document.querySelectorAll('.sportBtn').forEach(function(el){el.onclick=function(){SELECTED_SPORT=this.dataset.sport;curTeamFilter=null;buildSports();buildDays();loadDate(dateMap['today'],false);startAuto();}});}
+function buildDays(){var html='';[{key:'yesterday',label:'YESTERDAY'},{key:'today',label:'TODAY'},{key:'tomorrow',label:'TOMORROW'}].forEach(function(d){var iso=dateMap[d.key];var active=(SELECTED_DATE===iso)?'day-active':'day-inactive';if(SELECTED_DATE===''&&d.key==='today'){active='day-active';SELECTED_DATE=iso;}html+='<div class="dayBtn '+active+'" data-day="'+d.key+'">'+d.label+'</div>';});document.getElementById('daysBar').innerHTML=html;document.querySelectorAll('.dayBtn').forEach(function(el){el.onclick=function(){SELECTED_DATE=dateMap[this.dataset.day]||dateMap['today'];curTeamFilter=null;buildDays();loadDate(SELECTED_DATE,false);startAuto();}});}
 function getScores(m){try{var s=m.state&&m.state.score&&m.state.score.current||"";if(typeof s==='string'&&s.indexOf('-')>-1){var p=s.split('-');return{h:p[0].trim(),a:p[1].trim()};}return{h:null,a:null};}catch(e){return{h:null,a:null};}}
 function getTimeInfo(m){var s=m.date||"";var desc=(m.state&&m.state.description||m.status||"").toUpperCase();var isFin=desc.indexOf('FINISHED')>-1;var isLive=desc.indexOf('HALF')>-1||desc.indexOf('LIVE')>-1;var timeStr="-";try{if(s){var dt=new Date(s);if(!isNaN(dt.getTime()))timeStr=dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Lagos'});}}catch(e){}var display=isFin?'FT':(isLive?'LIVE':timeStr);return{display:display,isLive:isLive,isFinished:isFin,ts:s?new Date(s).getTime():0};}
-async function loadDate(dstr,silent){if(!dstr)dstr=getIso(0);SELECTED_DATE=dstr;buildSports();buildDays();if(!silent)document.getElementById('content').innerHTML='<div class="loading">Loading '+SPORTS[SELECTED_SPORT].name+'...</div>';try{var res=await fetch('/api/matches?sport='+SELECTED_SPORT+'&date='+dstr+'&t='+Date.now());var data=await res.json();ALL_MATCHES=data.data||data.matches||[];if(!Array.isArray(ALL_MATCHES))ALL_MATCHES=[];render(silent);}catch(e){if(!silent)document.getElementById('content').innerHTML='<div class="box">No games</div>';}}
-function render(silent){if(ALL_MATCHES.length===0){if(!silent)document.getElementById('content').innerHTML='<div class="box">No '+SELECTED_SPORT+' games for '+SELECTED_DATE+'</div>';return;}var groups={};ALL_MATCHES.forEach(function(m){var lid=m.league&&m.league.id||0;var ln=(m.league&&m.league.name||"Unknown").trim();var cn=(m.country&&m.country.name||m.league&&m.league.country||"World");if(typeof cn!=='string')cn=cn.name||"World";cn=cn.trim();var key=String(lid);if(!groups[key])groups[key]={country:cn,league:ln,leagueId:lid,games:[]};groups[key].games.push(m);});var html='<div class="sectionTitle"><span>'+SPORTS[SELECTED_SPORT].icon+' '+SELECTED_SPORT.toUpperCase()+' - '+SELECTED_DATE+' ('+ALL_MATCHES.length+')</span><span style="color:#ff3b30;font-size:10px">● V10 NEW KEY</span></div>';Object.values(groups).forEach(function(gr){gr.games.sort((a,b)=>getTimeInfo(a).ts-getTimeInfo(b).ts);html+='<div class="league-header"><div><span style="background:#00ff66;color:#000;padding:3px 8px;border-radius:4px;font-weight:900;font-size:10px">'+gr.country.toUpperCase()+'</span><span style="color:#00ff66;font-weight:900;margin-left:8px">'+gr.league.toUpperCase()+' (ID:'+gr.leagueId+')</span></div><span style="background:#00ff66;color:#000;padding:2px 8px;border-radius:12px;font-size:10px">TABLE</span></div>';gr.games.forEach(function(m){var h=m.homeTeam&&m.homeTeam.name||"Home";var a=m.awayTeam&&m.awayTeam.name||"Away";var ti=getTimeInfo(m);var sc=getScores(m);var scoreHtml=sc.h!=null?'<span style="color:#00ff66;font-weight:900">'+sc.h+'</span><br><span style="color:#00ff66;font-weight:900">'+sc.a+'</span>':(ti.isFinished?'FT':'-');var tc=ti.isLive?'time-live':(ti.isFinished?'time-ft':'time-green');html+='<div class="match" data-id="'+m.id+'" data-league="'+gr.leagueId+'" data-lname="'+(m.league&&m.league.name||'')+'"><div class="time-box"><div class="'+tc+'">'+ti.display+'</div></div><div style="flex:1;margin-left:10px"><div style="font-size:13px">'+h+'</div><div style="font-size:13px;color:#aaa;margin-top:4px">'+a+'</div></div><div class="score">'+scoreHtml+'</div></div>';});});document.getElementById('content').innerHTML=html;document.querySelectorAll('.match').forEach(function(el){el.onclick=function(){openDetails(this.dataset.id,this.dataset.league,this.dataset.lname);}});}
+async function loadDate(dstr,silent){if(!dstr)dstr=getIso(0);SELECTED_DATE=dstr;buildSports();buildDays();if(!silent)document.getElementById('content').innerHTML='<div class="loading">Loading '+SPORTS[SELECTED_SPORT].name+'...</div>';try{var res=await fetch('/api/matches?sport='+SELECTED_SPORT+'&date='+dstr+'&t='+Date.now());var data=await res.json();ALL_MATCHES=data.data||data.matches||[];if(!Array.isArray(ALL_MATCHES))ALL_MATCHES=[];FILTERED=ALL_MATCHES;render(silent);}catch(e){if(!silent)document.getElementById('content').innerHTML='<div class="box">No games</div>';}}
+function filterByTeam(team){curTeamFilter=team; FILTERED=ALL_MATCHES.filter(function(m){ var h=m.homeTeam&&m.homeTeam.name||""; var a=m.awayTeam&&m.awayTeam.name||""; return h.toUpperCase()===team.toUpperCase() || a.toUpperCase()===team.toUpperCase(); }); render(false); window.scrollTo(0,0); }
+function clearFilter(){curTeamFilter=null; FILTERED=ALL_MATCHES; render(false);}
+function render(silent){
+var list = FILTERED.length?FILTERED:ALL_MATCHES;
+if(list.length===0){if(!silent)document.getElementById('content').innerHTML='<div class="box">No '+SELECTED_SPORT+' games for '+SELECTED_DATE+'</div>';return;}
+var groups={};list.forEach(function(m){var lid=m.league&&m.league.id||0;var ln=(m.league&&m.league.name||"Unknown").trim();var cn=(m.country&&m.country.name||m.league&&m.league.country||"World");if(typeof cn!=='string')cn=cn.name||"World";cn=cn.trim();var key=String(lid);if(!groups[key])groups[key]={country:cn,league:ln,leagueId:lid,games:[]};groups[key].games.push(m);});
+var html=''; if(curTeamFilter){ html+='<div class="box" style="background:#00ff66;color:#000;text-align:center;cursor:pointer" onclick="clearFilter()"><b>FILTER: '+curTeamFilter.toUpperCase()+' ('+list.length+' matches) - CLICK TO CLEAR FILTER X</b></div>'; }
+html+='<div class="sectionTitle"><span>'+SPORTS[SELECTED_SPORT].icon+' '+SELECTED_SPORT.toUpperCase()+' - '+SELECTED_DATE+' ('+list.length+')</span><span style="color:#ff3b30;font-size:10px">● V12 CLICKABLE</span></div>';
+Object.values(groups).forEach(function(gr){
+gr.games.sort((a,b)=>getTimeInfo(a).ts-getTimeInfo(b).ts);
+html+='<div class="league-header" data-league="'+gr.leagueId+'" data-lname="'+gr.league+'"><div><span style="background:#00ff66;color:#000;padding:3px 8px;border-radius:4px;font-weight:900;font-size:10px;cursor:pointer">'+gr.country.toUpperCase()+'</span><span style="color:#00ff66;font-weight:900;margin-left:8px;cursor:pointer">'+gr.league.toUpperCase()+' (ID:'+gr.leagueId+') - CLICK FOR FULL TABLE</span></div><span style="background:#00ff66;color:#000;padding:2px 8px;border-radius:12px;font-size:10px">FULL TABLE</span></div>';
+gr.games.forEach(function(m){
+var h=m.homeTeam&&m.homeTeam.name||"Home"; var a=m.awayTeam&&m.awayTeam.name||"Away";
+var ti=getTimeInfo(m); var sc=getScores(m);
+var scoreHtml=sc.h!=null?'<span style="color:#00ff66;font-weight:900">'+sc.h+'</span><br><span style="color:#00ff66;font-weight:900">'+sc.a+'</span>':(ti.isFinished?'FT':'-');
+var tc=ti.isLive?'time-live':(ti.isFinished?'time-ft':'time-green');
+html+='<div class="match" data-id="'+m.id+'" data-league="'+gr.leagueId+'" data-lname="'+gr.league+'"><div class="time-box"><div class="'+tc+'">'+ti.display+'</div></div><div style="flex:1;margin-left:10px"><div class="teamName" data-team="'+h+'" style="font-size:13px">⚽ '+h+' (CLICK TO FILTER)</div><div class="teamName" data-team="'+a+'" style="font-size:13px;color:#aaa;margin-top:4px">⚽ '+a+' (CLICK TO FILTER)</div></div><div class="score">'+scoreHtml+'</div></div>';
+});
+});
+document.getElementById('content').innerHTML=html;
+// CLICK HANDLERS - EVERYTHING CLICKABLE
+document.querySelectorAll('.league-header').forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); openDetails(null,this.dataset.league,this.dataset.lname,true); }; });
+document.querySelectorAll('.match').forEach(function(el){
+ el.onclick=function(e){
+  if(e.target.classList.contains('teamName')){ e.stopPropagation(); filterByTeam(e.target.dataset.team); return; }
+  openDetails(this.dataset.id,this.dataset.league,this.dataset.lname,false);
+ };
+});
+document.querySelectorAll('.teamName').forEach(function(el){ el.onclick=function(e){ e.stopPropagation(); filterByTeam(this.dataset.team); }; });
+}
 function startAuto(){if(autoTimer)clearInterval(autoTimer);autoTimer=setInterval(function(){loadDate(SELECTED_DATE,true);},120000);}
-async function openDetails(id,leagueId,leagueName){
-curLeagueId=leagueId||null;curLeagueName=leagueName||'League';document.getElementById('modal').style.display='block';showTab('d');
-document.getElementById('tab-d').innerHTML='<div class="loading">Loading...</div>';
+async function openDetails(id,leagueId,leagueName,leagueOnly){
+curLeagueId=leagueId||null;curLeagueName=leagueName||'League';document.getElementById('modal').style.display='block';showTab(leagueOnly?'t':'d');
+document.getElementById('tab-d').innerHTML=leagueOnly?'<div class="loading">League table view - Click TABLE tab</div>':'<div class="loading">Loading...</div>';
 document.getElementById('statsGrid').innerHTML='<div class="loading">Loading stats...</div>';
-document.getElementById('tableBox').innerHTML='<div class="loading">Loading FULL TABLE for '+leagueName+' (ID:'+leagueId+')...<br>V10 NEW KEY - REAL + 15 DAYS...</div>';
+document.getElementById('tableBox').innerHTML='<div class="loading">Loading FULL 2026 TABLE for '+leagueName+' (ID:'+leagueId+')...<br>Everything clickable - wait...</div>';
 try{
+if(!leagueOnly && id){
 var res=await fetch('/api/details?sport='+SELECTED_SPORT+'&id='+id+'&t='+Date.now());var data=await res.json();var m=data.data||data||{};if(Array.isArray(m))m=m[0]||{};
 var h=m.homeTeam&&m.homeTeam.name||"Home";var a=m.awayTeam&&m.awayTeam.name||"Away";var sc=getScores(m);var ft=sc.h!=null?sc.h+' - '+sc.a:'0 - 0';
 var leagueLabel=(m.league&&m.league.name||curLeagueName||'League');
 document.getElementById('modalTitle').textContent=h+' vs '+a;
-document.getElementById('tab-d').innerHTML='<div class="box" style="text-align:center"><div style="color:#00ff66;font-weight:900">'+SPORTS[SELECTED_SPORT].icon+' '+SELECTED_SPORT.toUpperCase()+' - '+leagueLabel+' (ID:'+curLeagueId+')</div><div style="font-size:36px;font-weight:900;margin:10px 0">'+ft+'</div><div style="color:#aaa;font-size:11px">Status: '+(m.state&&m.state.description||m.status||'Finished')+'<br>Date: '+SELECTED_DATE+'<br>Season: 2026<br>NEW KEY: c0ea... ACTIVE</div><div style="margin-top:12px"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank" style="background:#00ff66;color:#000;padding:10px 20px;border-radius:10px;font-weight:900;text-decoration:none;display:inline-block">BET - 1XBET 300% BONUS</a></div></div>';
-var statsRes=await fetch('/api/stats?sport='+SELECTED_SPORT+'&id='+id+'&t='+Date.now()); var statsData=await statsRes.json(); var st=statsData.data||statsData||{};if(Array.isArray(st))st=st[0]||{}; if(typeof st==='object' && Object.keys(st).length===0){st=m;} var combined={};for(var k in m)combined[k]=m[k];for(var k in st)combined[k]=st[k];if(m.stats)for(var k in m.stats)combined[k]=m.stats[k];if(st.stats)for(var k in st.stats)combined[k]=st.stats[k]; function find(k){for(var i=0;i<k.length;i++){var key=k[i];if(combined[key]!=null)return combined[key];}return null;} function val(k,def){var v=find(k);return v!=null?v:def;} var html='<b>'+h+'</b><span style=color:#00ff66>TEAM</span><b>'+a+'</b>';var has=false; var pH=val(['homePossession','possessionHome'],null);var pA=val(['awayPossession','possessionAway'],null); if(pH){has=true;html+='<span>'+pH+'</span><span style=color:#00ff66>Possession</span><span>'+(pA||'-')+'</span>';} var sH=val(['homeShots','shotsHome'],null);var sA=val(['awayShots','shotsAway'],null); if(sH){has=true;html+='<span>'+sH+'</span><span style=color:#00ff66>Shots</span><span>'+(sA||'-')+'</span>';} var cH=val(['homeCorners','cornersHome'],null);var cA=val(['awayCorners','cornersAway'],null); if(cH){has=true;html+='<span>'+cH+'</span><span style=color:#00ff66>Corners</span><span>'+(cA||'-')+'</span>';} if(!has){html+='<span>'+(sc.h!=null?sc.h:'0')+'</span><span style=color:#00ff66>Goals</span><span>'+(sc.a!=null?sc.a:'0')+'</span>';} document.getElementById('statsGrid').innerHTML=html;
+document.getElementById('tab-d').innerHTML='<div class="box" style="text-align:center"><div style="color:#00ff66;font-weight:900;cursor:pointer" onclick="filterByTeam(\\''+h+'\\');closeModal();">'+SPORTS[SELECTED_SPORT].icon+' '+h+' (CLICK TO FILTER)</div><div style="font-size:36px;font-weight:900;margin:10px 0">'+ft+'</div><div style="color:#00ff66;font-weight:900;cursor:pointer" onclick="filterByTeam(\\''+a+'\\');closeModal();">'+a+' (CLICK TO FILTER)</div><div style="color:#aaa;font-size:11px;margin-top:8px">Status: '+(m.state&&m.state.description||m.status||'Finished')+'<br>Date: '+SELECTED_DATE+'<br>Season: 2026 FULL | CLICK TEAM NAME TO FILTER</div><div style="margin-top:12px"><a href="https://reffpa.com/L?tag=d_6266277m_97c_Livescore&site=6266277&ad=97" target="_blank" style="background:#00ff66;color:#000;padding:10px 20px;border-radius:10px;font-weight:900;text-decoration:none;display:inline-block">BET ON '+h+' vs '+a+' - 1XBET</a></div></div>';
+var statsRes=await fetch('/api/stats?sport='+SELECTED_SPORT+'&id='+id+'&t='+Date.now()); var statsData=await statsRes.json(); var st=statsData.data||statsData||{};if(Array.isArray(st))st=st[0]||{}; if(typeof st==='object' && Object.keys(st).length===0){st=m;} var combined={};for(var k in m)combined[k]=m[k];for(var k in st)combined[k]=st[k];if(m.stats)for(var k in m.stats)combined[k]=m.stats[k];if(st.stats)for(var k in st.stats)combined[k]=st.stats[k]; function find(k){for(var i=0;i<k.length;i++){var key=k[i];if(combined[key]!=null)return combined[key];}return null;} function val(k,def){var v=find(k);return v!=null?v:def;} var html='<b style="cursor:pointer" onclick="filterByTeam(\\''+h+'\\');closeModal();">'+h+'</b><span style=color:#00ff66>TEAM</span><b style="cursor:pointer" onclick="filterByTeam(\\''+a+'\\');closeModal();">'+a+'</b>';var has=false; var pH=val(['homePossession','possessionHome'],null);var pA=val(['awayPossession','possessionAway'],null); if(pH){has=true;html+='<span>'+pH+'</span><span style=color:#00ff66>Possession</span><span>'+(pA||'-')+'</span>';} if(!has){html+='<span>'+(sc.h!=null?sc.h:'0')+'</span><span style=color:#00ff66>Goals (CLICK TEAM TO FILTER)</span><span>'+(sc.a!=null?sc.a:'0')+'</span>';} document.getElementById('statsGrid').innerHTML=html;
+}else{
+ document.getElementById('modalTitle').textContent=leagueName+' FULL TABLE';
+ document.getElementById('tab-d').innerHTML='<div class="box" style="text-align:center"><div style="color:#00ff66;font-weight:900">'+leagueName.toUpperCase()+' (ID:'+curLeagueId+')</div><div style="margin:10px 0">FULL 2026 SEASON TABLE</div><div style="color:#aaa;font-size:11px">Click TABLE tab to see full table - Everything clickable!</div></div>';
+}
 if(curLeagueId){
 var rt=await fetch('/api/standings?sport='+SELECTED_SPORT+'&id='+curLeagueId+'&t='+Date.now());var td=await rt.json();var rows=td.data||[];
 if(rows.length>5){
-var h2='<div class="box" style="padding:0;overflow-x:auto"><div style="background:#00ff66;color:#000;padding:8px;font-weight:900;text-align:center">'+leagueLabel.toUpperCase()+' (ID:'+curLeagueId+') - REAL FULL ('+rows.length+' TEAMS)</div><table class="standings"><tr><th>#</th><th style="text-align:left">Team</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>G</th><th>PTS</th></tr>';rows.forEach(function(r){var hl=(r.team.toUpperCase()===h.toUpperCase()||r.team.toUpperCase()===a.toUpperCase())?' style="background:#0f2f0f"':'';h2+='<tr'+hl+'><td style="color:#00ff66;font-weight:900">'+r.pos+'.</td><td class="teamCell">'+r.team+'</td><td>'+r.MP+'</td><td>'+r.W+'</td><td>'+r.D+'</td><td>'+r.L+'</td><td>'+r.G+'</td><td style="color:#00ff66;font-weight:900">'+r.PTS+'</td></tr>';});h2+='</table></div>';document.getElementById('tableBox').innerHTML=h2;
+var h2='<div class="box" style="padding:0;overflow-x:auto"><div style="background:#00ff66;color:#000;padding:8px;font-weight:900;text-align:center">'+leagueName.toUpperCase()+' REAL FULL 2026 ('+rows.length+' TEAMS) - CLICK TEAM TO FILTER</div><table class="standings"><tr><th>#</th><th style="text-align:left">Team (CLICK)</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>G</th><th>PTS</th></tr>';rows.forEach(function(r){var hl=(curTeamFilter&&r.team.toUpperCase()===curTeamFilter.toUpperCase())?' style="background:#0f2f0f"':'';h2+='<tr'+hl+'><td style="color:#00ff66;font-weight:900">'+r.pos+'.</td><td class="teamCell" data-team="'+r.team+'">'+r.team+' (CLICK)</td><td>'+r.MP+'</td><td>'+r.W+'</td><td>'+r.D+'</td><td>'+r.L+'</td><td>'+r.G+'</td><td style="color:#00ff66;font-weight:900">'+r.PTS+'</td></tr>';});h2+='</table></div>';document.getElementById('tableBox').innerHTML=h2;
 }else{
-document.getElementById('tableBox').innerHTML='<div class="loading">No Real - Building FULL 15 DAYS ALL SPORTS...</div>';
 var fullRes=await fetch('/api/full-table?sport='+SELECTED_SPORT+'&id='+curLeagueId+'&t='+Date.now()); var fullData=await fullRes.json(); var rows2=fullData.data||[];
 if(rows2.length>0){
- var h3='<div class="box" style="padding:0;overflow-x:auto"><div style="background:#ffaa00;color:#000;padding:8px;font-weight:900;text-align:center">'+leagueLabel.toUpperCase()+' (ID:'+curLeagueId+') - FULL ('+rows2.length+' TEAMS, '+fullData.matches+' MATCHES)</div><table class="standings"><tr><th>#</th><th style="text-align:left">Team</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>G</th><th>PTS</th></tr>';rows2.forEach(function(r){var hl=(r.team.toUpperCase()===h.toUpperCase()||r.team.toUpperCase()===a.toUpperCase())?' style="background:#0f2f0f"':'';h3+='<tr'+hl+'><td style="color:#00ff66;font-weight:900">'+r.pos+'.</td><td class="teamCell">'+r.team+'</td><td>'+r.MP+'</td><td>'+r.W+'</td><td>'+r.D+'</td><td>'+r.L+'</td><td>'+r.G+'</td><td style="color:#00ff66;font-weight:900">'+r.PTS+'</td></tr>';});h3+='</table><div style="padding:8px;color:#aaa;font-size:10px;text-align:center">FULL TABLE - NEW KEY ACTIVE - '+fullData.matches+' matches - ID:'+curLeagueId+'</div></div>';document.getElementById('tableBox').innerHTML=h3;
-}else{ document.getElementById('tableBox').innerHTML='<div class="box" style="text-align:center">No data - ID:'+curLeagueId+'</div>';}
+ var h3='<div class="box" style="padding:0;overflow-x:auto"><div style="background:#ffaa00;color:#000;padding:8px;font-weight:900;text-align:center">'+leagueName.toUpperCase()+' FULL 2026 ('+rows2.length+' TEAMS, '+fullData.matches+' MATCHES) - CLICK TEAM TO FILTER</div><table class="standings"><tr><th>#</th><th style="text-align:left">Team (CLICK)</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>G</th><th>PTS</th></tr>';rows2.forEach(function(r){var hl=(curTeamFilter&&r.team.toUpperCase()===curTeamFilter.toUpperCase())?' style="background:#0f2f0f"':'';h3+='<tr'+hl+'><td style="color:#00ff66;font-weight:900">'+r.pos+'.</td><td class="teamCell" data-team="'+r.team+'">'+r.team+' (CLICK)</td><td>'+r.MP+'</td><td>'+r.W+'</td><td>'+r.D+'</td><td>'+r.L+'</td><td>'+r.G+'</td><td style="color:#00ff66;font-weight:900">'+r.PTS+'</td></tr>';});h3+='</table><div style="padding:8px;color:#aaa;font-size:10px;text-align:center">FULL 2026 - CLICK ANY TEAM TO FILTER MATCHES - ID:'+curLeagueId+'</div></div>';document.getElementById('tableBox').innerHTML=h3;
+}else{ document.getElementById('tableBox').innerHTML='<div class="box">No data ID:'+curLeagueId+'</div>';}
 }
+document.querySelectorAll('.teamCell').forEach(function(el){ el.onclick=function(){ filterByTeam(this.dataset.team); closeModal(); }; });
 }
 }catch(e){document.getElementById('tab-d').innerHTML='<div class="box">Error '+e.message+'</div>';}
 }
