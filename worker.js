@@ -14,7 +14,6 @@ export default {
     const url = new URL(request.url);
     const H = {"x-rapidapi-key": KEY};
     const cache = caches.default;
-
     async function cachedFetch(apiUrl, cacheTime=90){
       let req = new Request(apiUrl, {headers:H});
       let cached = await cache.match(req);
@@ -27,7 +26,6 @@ export default {
         return res;
       }catch(e){ return new Response(JSON.stringify({data:[]}), {headers:{"Content-Type":"application/json; charset=utf-8","Access-Control-Allow-Origin":"*"}}); }
     }
-
     if(url.pathname === "/api/sports"){
       let sport = url.searchParams.get("sport")||"football";
       let date = url.searchParams.get("date")||"";
@@ -54,7 +52,7 @@ export default {
             G: t.goalsFor!=null ? `${t.goalsFor}:${t.goalsAgainst}` : (t.pointsFor ? `${t.pointsFor}:${t.pointsAgainst}` : "0:0"),
             PTS: t.points || 0, GD: (t.goalsFor||t.pointsFor||0)-(t.goalsAgainst||t.pointsAgainst||0)
           })).sort((a,b)=> b.PTS - a.PTS || b.GD - a.GD).map((t,i)=>({pos:i+1,...t}));
-          let res = new Response(JSON.stringify({data:auto, season:"2026/27", sport:sport, source:`sports-api-${sport}-auto`}), 
+          let res = new Response(JSON.stringify({data:auto, season:"2026/27", sport:sport}), 
           {headers:{"Content-Type":"application/json; charset=utf-8","Access-Control-Allow-Origin":"*","Cache-Control":"public, max-age=300"}});
           await cache.put(cacheKey, res.clone());
           return res;
@@ -70,17 +68,22 @@ export default {
     }
 
     const html = `<!DOCTYPE html><html><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND SPORTS API ALL - FOOTBALL BASKETBALL HANDBALL VOLLEYBALL</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DIAMOND - MORE DAYS LIST</title>
 <style>
 html,body{margin:0;background:#000;color:#fff;font-family:Arial}
 .top{display:flex;justify-content:center;padding:12px;background:#000;border-bottom:3px solid #00ff66;position:sticky;top:0;z-index:200}
 .logo{background:#00ff66;color:#000;padding:8px 28px;border-radius:8px;font-weight:900;font-style:italic}
-.sportsBar{display:flex;gap:6px;padding:10px;background:#111;overflow-x:auto;border-bottom:2px solid #00ff66;position:sticky;top:54px;z-index:150}
+.sportsBar{display:flex;gap:6px;padding:10px;background:#111;overflow-x:auto;border-bottom:2px solid #00ff66;position:sticky;top:54px;z-index:150;scrollbar-width:none}
 .sportBtn{padding:10px 16px;border-radius:20px;font-weight:900;font-size:11px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66;min-width:80px;text-align:center}
 .sport-inactive{background:#000;color:#00ff66}.sport-active{background:#00ff66;color:#000}
-.days{display:flex;gap:6px;padding:10px;background:#000;overflow-x:auto;border-bottom:1px solid #333;position:sticky;top:103px;z-index:149}
-.dayBtn{padding:8px 12px;border-radius:14px;font-weight:900;font-size:11px;white-space:nowrap;cursor:pointer;border:1px solid #444;min-width:70px;text-align:center}
-.day-inactive{background:#111;color:#aaa}.day-active{background:#00ff66;color:#000;border-color:#00ff66}
+.days{display:flex;gap:8px;padding:10px;background:#000;overflow-x:auto;border-bottom:1px solid #333;position:sticky;top:103px;z-index:149;scrollbar-width:none}
+.dayBtn{padding:12px 18px;border-radius:20px;font-weight:900;font-size:12px;white-space:nowrap;cursor:pointer;border:1.5px solid #00ff66;min-width:90px;text-align:center}
+.day-inactive{background:#000;color:#00ff66}.day-active{background:#00ff66;color:#000;box-shadow:0 0 8px #00ff66}
+.moreDaysBox{background:#0a0a0a;border:2px solid #00ff66;border-radius:10px;margin:8px;overflow:hidden;display:none}
+.moreHeader{background:#8B0000;color:#fff;padding:10px 12px;font-weight:900;font-size:13px}
+.moreRow{padding:12px 15px;border-bottom:1px solid #222;background:#0a0a0a;cursor:pointer}
+.moreRow a{color:#00ccff;text-decoration:underline;font-size:13px}
+.moreRow:hover{background:#111}
 .sectionTitle{background:#00ff66;color:#000;padding:9px 10px;font-weight:900;font-size:12px}
 .match{display:flex;justify-content:space-between;align-items:center;padding:12px 10px;background:#0a0a0a;border-bottom:1px solid #1a1a1a;cursor:pointer}
 .league-header{background:#111;border-top:2px solid #00ff66;padding:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
@@ -102,12 +105,13 @@ table.standings{width:100%;border-collapse:collapse;font-size:11px} table.standi
 <div class="bet"><a href="${MY_1XBET}" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>BET NOW BONUS 300% - ALL SPORTS</span></a></div>
 <div class="sportsBar" id="sportsBar"></div>
 <div class="days" id="daysBar"></div>
+<div class="moreDaysBox" id="moreDaysBox"></div>
 <div id="content"><div class="loading">Loading SPORTS API ALL...</div></div>
 <div id="modal"><div id="modalTop"><span style="color:#00ff66;font-weight:900" id="modalTitle">MATCH</span><button class="closeBtn" onclick="closeModal()">X CLOSE</button></div><div id="modalContent"></div></div>
 <div class="spacer"></div>
 <div class="bottom"><a href="${MY_1XBET}" target="_blank"><span class="logo1x-whiteblue">1XBET</span><span>BET ALL SPORTS NOW</span></a></div>
 <script>
-var ALL_MATCHES=[]; var SELECTED_SPORT='football'; var SELECTED_DATE='';
+var ALL_MATCHES=[]; var SELECTED_SPORT='football'; var SELECTED_DATE=''; var moreOpen=false;
 var SPORTS = {
   football: {name:"FOOTBALL", icon:"⚽"},
   basketball: {name:"BASKETBALL", icon:"🏀"},
@@ -116,17 +120,89 @@ var SPORTS = {
   hockey: {name:"HOCKEY", icon:"🏒"},
   rugby: {name:"RUGBY", icon:"🏉"}
 };
-function getDateObj(o){ var n=new Date(); n.setDate(n.getDate()+o); var l=new Date(n.toLocaleString('en-US',{timeZone:'Africa/Lagos'})); var iso=l.getFullYear()+"-"+String(l.getMonth()+1).padStart(2,'0')+"-"+String(l.getDate()).padStart(2,'0'); var label=l.toLocaleDateString('en-GB',{weekday:'short', day:'2-digit', month:'short'}); return {iso:iso, label:label}; }
+function getIso(off){ var n=new Date(); n.setDate(n.getDate()+off); var l=new Date(n.toLocaleString('en-US',{timeZone:'Africa/Lagos'})); return l.getFullYear()+"-"+String(l.getMonth()+1).padStart(2,'0')+"-"+String(l.getDate()).padStart(2,'0'); }
+var dateMap={};
+function initDates(){
+  dateMap['yesterday']=getIso(-1);
+  dateMap['today']=getIso(0);
+  dateMap['tomorrow']=getIso(1);
+  for(var i=-7;i<=7;i++){ if(i===-1||i===0||i===1) continue; dateMap['d'+i]=getIso(i); }
+}
 function buildSports(){
   var html=''; for(var k in SPORTS){ var active = k===SELECTED_SPORT ? 'sport-active' : 'sport-inactive'; html+='<div class="sportBtn '+active+'" onclick="selectSport(\\''+k+'\\')">'+SPORTS[k].icon+' '+SPORTS[k].name+'</div>'; }
   document.getElementById('sportsBar').innerHTML=html;
 }
-function selectSport(s){ SELECTED_SPORT=s; buildSports(); buildDays(); loadDate(SELECTED_DATE); }
-function buildDays(){ var html=''; var offsets=[-3,-2,-1,0,1,2,3]; offsets.forEach(function(off){ var d=getDateObj(off); var isToday=off===0; var name = isToday? 'TODAY' : (off===-1?'YESTERDAY' : (off===1?'TOMORROW' : d.label.toUpperCase())); var active = (SELECTED_DATE===d.iso) ? 'day-active' : 'day-inactive'; if(SELECTED_DATE==='' && isToday){ active='day-active'; SELECTED_DATE=d.iso; } html+='<div class="dayBtn '+active+'" onclick="selectDay(\\''+d.iso+'\\')">'+name+'<br><span style="font-size:9px">'+d.iso.slice(5)+'</span></div>'; }); document.getElementById('daysBar').innerHTML=html; }
-function selectDay(iso){ SELECTED_DATE=iso; buildDays(); loadDate(iso); }
+function selectSport(s){ SELECTED_SPORT=s; buildSports(); buildDays(); loadDate(dateMap['today']); }
+function formatMoreDay(iso){
+  var dt=new Date(iso);
+  var dd=String(dt.getDate()).padStart(2,'0');
+  var mm=String(dt.getMonth()+1).padStart(2,'0');
+  var map={Mon:'Mo',Tue:'Tu',Wed:'We',Thu:'Th',Fri:'Fr',Sat:'Sa',Sun:'Su'};
+  var short=dt.toLocaleDateString('en-GB',{weekday:'short'});
+  var wd=map[short]||short.substring(0,2);
+  return dd+'/'+mm+' '+wd;
+}
+function buildDays(){
+  var html='';
+  var days = [
+    {key:'yesterday', label:'YESTERDAY'},
+    {key:'today', label:'TODAY'},
+    {key:'tomorrow', label:'TOMORROW'}
+  ];
+  days.forEach(function(d){
+    var iso=dateMap[d.key];
+    var active=(SELECTED_DATE===iso)?'day-active':'day-inactive';
+    if(SELECTED_DATE==='' && d.key==='today'){ active='day-active'; SELECTED_DATE=iso; }
+    html+='<div class="dayBtn '+active+'" onclick="selectDay(\\''+d.key+'\\')">'+d.label+'</div>';
+  });
+  var moreActive = moreOpen ? 'day-active' : 'day-inactive';
+  html+='<div class="dayBtn '+moreActive+'" onclick="toggleMoreDays()">MORE DAYS »</div>';
+  document.getElementById('daysBar').innerHTML=html;
+}
+function selectDay(k){
+  moreOpen=false;
+  document.getElementById('moreDaysBox').style.display='none';
+  SELECTED_DATE=dateMap[k]||dateMap['today'];
+  buildDays();
+  loadDate(SELECTED_DATE);
+}
+function toggleMoreDays(){
+  moreOpen=!moreOpen;
+  if(!moreOpen){ document.getElementById('moreDaysBox').style.display='none'; buildDays(); return; }
+  var html='<div class="moreHeader">More days</div>';
+  // 7 days before like screenshot
+  for(var i=-7;i<=-1;i++){
+    if(i===-1){
+      html+='<div class="moreRow" onclick="selectMore(\\'yesterday\\')"><a>Yesterday</a></div>';
+    } else {
+      var iso=getIso(i);
+      var label=formatMoreDay(iso);
+      var k='d'+i;
+      html+='<div class="moreRow" onclick="selectMore(\\''+k+'\\')"><a>'+label+'</a></div>';
+    }
+  }
+  html+='<div class="moreRow" onclick="selectMore(\\'today\\')"><a>Today</a></div>';
+  html+='<div class="moreRow" onclick="selectMore(\\'tomorrow\\')"><a>Tomorrow</a></div>';
+  for(var j=2;j<=7;j++){
+    var iso2=getIso(j);
+    var label2=formatMoreDay(iso2);
+    var k2='d'+j;
+    html+='<div class="moreRow" onclick="selectMore(\\''+k2+'\\')"><a>'+label2+'</a></div>';
+  }
+  document.getElementById('moreDaysBox').innerHTML=html;
+  document.getElementById('moreDaysBox').style.display='block';
+  buildDays();
+}
+function selectMore(k){
+  SELECTED_DATE=dateMap[k]||getIso(0);
+  moreOpen=false;
+  document.getElementById('moreDaysBox').style.display='none';
+  buildDays();
+  loadDate(SELECTED_DATE);
+}
 function getScores(m){ try{ var s=m.state?.score?.current||""; if(typeof s==='string' && s.indexOf('-')>-1){ var p=s.split('-'); return {h:p[0].trim(), a:p[1].trim()}; } return {h:null, a:null}; }catch(e){ return {h:null, a:null}; } }
 function getTimeInfo(m){ var s=m.date||""; var desc=(m.state?.description||m.status||"").toUpperCase(); var isFin=desc.indexOf('FINISHED')>-1; var isLive=desc.indexOf('HALF')>-1||desc.indexOf('LIVE')>-1; var timeStr="-"; try{ if(s){ var dt=new Date(s); if(!isNaN(dt.getTime())) timeStr=dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Lagos'}); } }catch(e){} var display=isFin?'FT':(isLive?'LIVE':timeStr); return {display:display, isLive:isLive, isFinished:isFin, ts: s ? new Date(s).getTime():0}; }
-async function loadDate(dstr){ if(!dstr) dstr=getDateObj(0).iso; SELECTED_DATE=dstr; buildSports(); buildDays(); document.getElementById('content').innerHTML='<div class="loading">Loading '+SPORTS[SELECTED_SPORT].icon+' '+SELECTED_SPORT.toUpperCase()+' '+dstr+' - SPORTS API ALL...</div>'; try{ var res=await fetch('/api/sports?sport='+SELECTED_SPORT+'&date='+dstr); var data=await res.json(); ALL_MATCHES=data.data||data.matches||[]; if(!Array.isArray(ALL_MATCHES)) ALL_MATCHES=[]; render(); }catch(e){ document.getElementById('content').innerHTML='<div class="loading">No games for '+SELECTED_SPORT+'...</div>'; } }
+async function loadDate(dstr){ if(!dstr) dstr=getIso(0); SELECTED_DATE=dstr; buildSports(); buildDays(); document.getElementById('content').innerHTML='<div class="loading">Loading '+SPORTS[SELECTED_SPORT].icon+' '+SELECTED_SPORT.toUpperCase()+' - '+dstr+' - SPORTS API ALL...</div>'; try{ var res=await fetch('/api/sports?sport='+SELECTED_SPORT+'&date='+dstr); var data=await res.json(); ALL_MATCHES=data.data||data.matches||[]; if(!Array.isArray(ALL_MATCHES)) ALL_MATCHES=[]; render(); }catch(e){ document.getElementById('content').innerHTML='<div class="loading">No games for '+SELECTED_SPORT+'...</div>'; } }
 function render(){
   if(ALL_MATCHES.length===0){ document.getElementById('content').innerHTML='<div class="box">No '+SELECTED_SPORT+' games for '+SELECTED_DATE+'<br><br>Sports API includes all sports but games depend on date.<br><br>Try other sport or date.</div>'; return; }
   var groups={}; ALL_MATCHES.forEach(function(m){ var ln=(m.league?.name||"Unknown").trim(); var cn=(m.country?.name||m.league?.country||"World"); if(typeof cn!=='string') cn=cn.name||"World"; cn=cn.trim(); var lid=m.league?.id||0; var key=(cn+"|"+ln).toUpperCase(); if(!groups[key]) groups[key]={country:cn, league:ln, leagueId:lid, games:[]}; groups[key].games.push(m); });
@@ -144,14 +220,14 @@ function render(){
   document.getElementById('content').innerHTML=html;
 }
 async function openTable(leagueId, leagueName, country){
-  document.getElementById('content').innerHTML='<div class="loading">Loading AUTO TABLE for '+leagueName+' - '+SELECTED_SPORT+' - SPORTS API ALL...</div>';
+  document.getElementById('content').innerHTML='<div class="loading">Loading AUTO TABLE for '+leagueName+' - '+SELECTED_SPORT+'...</div>';
   try{
-    let res = await fetch('/api/standings?sport='+SELECTED_SPORT+'&id='+leagueId+'&league='+encodeURIComponent(leagueName)+'&country='+encodeURIComponent(country));
+    let res = await fetch('/api/standings?sport='+SELECTED_SPORT+'&id='+leagueId);
     let data = await res.json(); let rows = data.data||[];
-    if(rows.length===0){ document.getElementById('content').innerHTML='<div class="box">No table for '+leagueName+' - '+SELECTED_SPORT+'<br><button class="btnSmall active" onclick="selectDay(SELECTED_DATE)">BACK</button></div>'; return; }
-    let html='<div class="sectionTitle">'+country.toUpperCase()+' - '+leagueName.toUpperCase()+' - '+SELECTED_SPORT.toUpperCase()+' AUTO TABLE ('+rows.length+' teams) - SPORTS API ALL</div><div class="box" style="padding:0;overflow-x:auto"><table class="standings"><tr><th>#</th><th style="text-align:left">Team</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>G</th><th>PTS</th></tr>';
+    if(rows.length===0){ document.getElementById('content').innerHTML='<div class="box">No table for '+leagueName+'<br><button class="btnSmall active" onclick="selectDay(\\'today\\')">BACK</button></div>'; return; }
+    let html='<div class="sectionTitle">'+country.toUpperCase()+' - '+leagueName.toUpperCase()+' - '+SELECTED_SPORT.toUpperCase()+' AUTO TABLE ('+rows.length+' teams)</div><div class="box" style="padding:0;overflow-x:auto"><table class="standings"><tr><th>#</th><th style="text-align:left">Team</th><th>MP</th><th>W</th><th>D</th><th>L</th><th>G</th><th>PTS</th></tr>';
     rows.forEach(r=>{ html+='<tr><td style="color:#00ff66;font-weight:900">'+r.pos+'.</td><td class="teamCell">'+r.team+'</td><td>'+r.MP+'</td><td>'+r.W+'</td><td>'+r.D+'</td><td>'+r.L+'</td><td>'+r.G+'</td><td style="color:#00ff66;font-weight:900">'+r.PTS+'</td></tr>'; });
-    html+='</table></div><div class="box" style="color:#00ff66;font-size:11px">✓ AUTOMATICALLY ARRANGED FROM SPORTS API - '+SELECTED_SPORT.toUpperCase()+' - Sorted by Points DESC - Cache 300s - '+rows.length+' teams complete</div><div class="box"><button class="btnSmall active" onclick="selectDay(SELECTED_DATE)">BACK</button></div>';
+    html+='</table></div><div class="box" style="color:#00ff66;font-size:11px">✓ AUTO ARRANGED FROM SPORTS API - Sorted by Points</div><div class="box"><button class="btnSmall active" onclick="selectDay(\\'today\\')">BACK</button></div>';
     document.getElementById('content').innerHTML=html;
   }catch(e){ document.getElementById('content').innerHTML='<div class="box">Error '+e.message+'</div>'; }
 }
@@ -161,11 +237,11 @@ async function openDetails(id){
     var res = await fetch('/api/match?sport='+SELECTED_SPORT+'&id='+id); var data = await res.json(); var m = data.data||data||{};
     if(Array.isArray(m)) m=m[0]||{}; var h=m.homeTeam?.name||"Home"; var a=m.awayTeam?.name||"Away"; var sc=getScores(m); var ft = sc.h!=null ? sc.h+' - '+sc.a : '0 - 0';
     document.getElementById('modalTitle').textContent=h+' vs '+a+' - '+SELECTED_SPORT.toUpperCase();
-    document.getElementById('modalContent').innerHTML='<div class="box" style="text-align:center"><div style="color:#00ff66;font-weight:900">'+SPORTS[SELECTED_SPORT].icon+' '+SELECTED_SPORT.toUpperCase()+'</div><div style="font-size:40px;font-weight:900">'+ft+'</div><div style="color:#aaa;font-size:11px">'+h+' vs '+a+'</div></div><a href="${MY_1XBET}" target="_blank" style="background:#0052ff;color:#fff;padding:12px;border-radius:10px;font-weight:900;display:flex;justify-content:center;gap:10px;text-decoration:none;margin:8px"><span class="logo1x-whiteblue">1XBET</span><span>BET NOW '+SELECTED_SPORT.toUpperCase()+'</span></a>';
+    document.getElementById('modalContent').innerHTML='<div class="box" style="text-align:center"><div style="color:#00ff66;font-weight:900">'+SPORTS[SELECTED_SPORT].icon+' '+SELECTED_SPORT.toUpperCase()+'</div><div style="font-size:40px;font-weight:900">'+ft+'</div><div style="color:#aaa;font-size:11px">'+h+' vs '+a+'</div></div><a href="${MY_1XBET}" target="_blank" style="background:#0052ff;color:#fff;padding:12px;border-radius:10px;font-weight:900;display:flex;justify-content:center;gap:10px;text-decoration:none;margin:8px"><span class="logo1x-whiteblue">1XBET</span><span>BET NOW</span></a>';
   }catch(e){ document.getElementById('modalContent').innerHTML='<div class="box">Error</div>'; }
 }
 function closeModal(){ document.getElementById('modal').style.display='none'; }
-buildSports(); buildDays(); loadDate(getDateObj(0).iso);
+initDates(); buildSports(); buildDays(); loadDate(getIso(0));
 </script>
 </body></html>`;
     return new Response(html, { headers: {"Content-Type":"text/html; charset=UTF-8","Cache-Control":"no-cache"} });
