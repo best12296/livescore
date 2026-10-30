@@ -107,6 +107,6 @@ function showTab(id){document.getElementById('tab-d').style.display=id==='d'?'bl
 function closeModal(){document.getElementById('modal').style.display='none';}
 initDates();buildSports();buildDays();loadDate(getIso(0),false);startAuto();
 </script></body></html>`;
-return new Response(html,{headers:{"Content-Type":"text/html; charset=UTF-8","Cache-Control":"no-cache"}});
+return new Response(html,{headers:{"Content-Type":"text/html; charset=UTF-8"}});
 }
 }
